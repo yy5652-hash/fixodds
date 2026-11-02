@@ -20,7 +20,7 @@ FILTERS = [
      for key in ('repair', 'service:repair')]
 
 def run(where):
-    query = PRE + 'SELECT ?o ?name ?c ?web WHERE { ' + where + ' ?o geo:hasGeometry/geo:asWKT ?c . OPTIONAL { ?o osmkey:name ?name } OPTIONAL { ?o osmkey:website ?web } }'
+    query = PRE + 'SELECT ?o ?name ?c ?web ?phone ?hours WHERE { ' + where + ' ?o geo:hasGeometry/geo:asWKT ?c . OPTIONAL { ?o osmkey:name ?name } OPTIONAL { ?o osmkey:website ?web } OPTIONAL { ?o osmkey:phone ?phone } OPTIONAL { ?o osmkey:opening_hours ?hours } }'
     request = urllib.request.Request(ENDPOINT + '?' + urllib.parse.urlencode({'query': query}),
                                      headers={'Accept': 'application/sparql-results+json', 'User-Agent': 'FixOdds data build'})
     with urllib.request.urlopen(request, timeout=170) as response:
@@ -41,8 +41,11 @@ def main():
             key = row['o']['value']
             if key in places and places[key][3] <= kind: continue
             web = row.get('web', {}).get('value', '')
+            # OSM phone tags can hold several numbers separated by semicolons: keep the first usable one.
+            phone = row.get('phone', {}).get('value', '').split(';')[0].strip()
             places[key] = [round(float(match[2]), 5), round(float(match[1]), 5), row.get('name', {}).get('value', '')[:80], kind,
-                           web[:120] if web.startswith(('http://', 'https://')) else '', key.rsplit('/', 2)[-2] + '/' + key.rsplit('/', 1)[-1]]
+                           web[:120] if web.startswith(('http://', 'https://')) else '', key.rsplit('/', 2)[-2] + '/' + key.rsplit('/', 1)[-1],
+                           phone if re.fullmatch(r'\+?[\d ()./-]{5,30}', phone) else '', row.get('hours', {}).get('value', '')[:80]]
     if len(places) < 5000: sys.exit(f'Refusing to write: only {len(places)} places.')
     OUT.write_text(json.dumps({'built': date.today().isoformat(), 'source': 'OpenStreetMap contributors, ODbL 1.0', 'kinds': KINDS,
                                'places': sorted(places.values())}, ensure_ascii=False, separators=(',', ':')) + '\n')
