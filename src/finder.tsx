@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import L from 'leaflet';
+import type L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 export type Point = { lat: number; lon: number };
 export type Place = Point & { display_name: string };
-export type RepairPlace = Point & { name: string; kind: string; website: string; osm: string; distance: number };
+export type RepairPlace = Point & { name: string; kind: string; website: string; osm: string; phone: string; hours: string; distance: number };
 type Services = { geocoder: string; tiles: string; radius: number };
 let configPromise: Promise<Services> | undefined;
 export async function services(): Promise<Services> {
@@ -51,7 +51,7 @@ export function distance(a: Point, b: Point): number {
   const h = Math.sin(radians(b.lat-a.lat)/2)**2 + Math.cos(radians(a.lat))*Math.cos(radians(b.lat))*Math.sin(radians(b.lon-a.lon)/2)**2;
   return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0,1-h)));
 }
-type PlaceData = { built: string; kinds: string[]; places: [number, number, string, number, string, string][] };
+type PlaceData = { built: string; kinds: string[]; places: [number, number, string, number, string, string, string?, string?][] };
 let placeData: Promise<PlaceData> | undefined;
 function loadPlaces(): Promise<PlaceData> {
   if (!placeData) placeData = fetch('./places.json').then(r => { if (!r.ok) throw Error('Repair places could not be loaded.'); return r.json(); }).catch(e => { placeData = undefined; throw e; });
@@ -60,10 +60,10 @@ function loadPlaces(): Promise<PlaceData> {
 // The whole directory ships with the site, so the nearest places are worked out on this device.
 export function nearest(data: PlaceData, point: Point, radius: number, limit = 40): RepairPlace[] {
   const found: RepairPlace[] = [];
-  for (const [lat, lon, name, kind, website, osm] of data.places) {
+  for (const [lat, lon, name, kind, website, osm, phone = '', hours = ''] of data.places) {
     if (Math.abs(lat - point.lat) * 111 > radius) continue;
     const d = distance(point, { lat, lon });
-    if (d <= radius) found.push({ lat, lon, name: name || data.kinds[kind], kind: data.kinds[kind], website, osm, distance: d });
+    if (d <= radius) found.push({ lat, lon, name: name || data.kinds[kind], kind: data.kinds[kind], website, osm, phone, hours, distance: d });
   }
   return found.sort((a, b) => a.distance - b.distance).slice(0, limit);
 }
@@ -80,7 +80,7 @@ function RepairMap({ point, places }: { point: Point; places: RepairPlace[] }) {
   useEffect(() => {
     let map: L.Map | undefined;
     let disposed = false;
-    services().then(config => {
+    Promise.all([services(), import('leaflet')]).then(([config, { default: L }]) => {
       if (disposed || !ref.current) return;
       map = L.map(ref.current, { scrollWheelZoom: false }).setView([point.lat,point.lon], 11);
       L.tileLayer(config.tiles, { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' }).on('tileerror', () => setError('Map tiles could not load. The list below still works.')).addTo(map);
@@ -132,6 +132,6 @@ export default function Finder() {
     {busy && <p role="status">Looking for repair help…</p>}
     {error && <p role="alert" className="notice">{error}</p>}
     {matches.length>0 && <div className="place-choices"><p>Choose your area:</p>{matches.map((p,i)=><button className="secondary" key={i} disabled={busy} onClick={()=>void find(p,p.display_name)}>{p.display_name}</button>)}</div>}
-    {searched && point && <><p className="eyebrow">{places.length} mapped places near {area}</p><RepairMap point={point} places={places}/><p className="small">Map listings may be incomplete or out of date. Call ahead about your device, opening times and fees. A shop listing is not a repair recommendation.</p>{places.length === 0 ? <p className="notice">No repair locations are mapped nearby. That does not mean none exist: check Repair Cafe International or Restarters below.</p> : <ol className="repair-list">{places.map(p=><li key={p.osm}><div><strong>{p.name}</strong><span>{p.distance.toFixed(1)} km away · {p.kind}</span>{p.website && <a href={p.website} target="_blank" rel="noreferrer nofollow">Website ↗</a>}</div><a href={`https://www.openstreetmap.org/${p.osm}`} target="_blank" rel="noreferrer">View listing ↗</a></li>)}</ol>}<a className="small" href="https://www.openstreetmap.org/fixthemap">Report a map issue</a></>}
+    {searched && point && <><p className="eyebrow">{places.length} mapped places near {area}</p><RepairMap point={point} places={places}/><p className="small">Map listings may be incomplete or out of date. Call ahead about your device, opening times and fees. A shop listing is not a repair recommendation.</p>{places.length === 0 ? <p className="notice">No repair locations are mapped nearby. That does not mean none exist: check Repair Cafe International or Restarters below.</p> : <ol className="repair-list">{places.map(p=><li key={p.osm}><div><strong>{p.name}</strong><span>{p.distance.toFixed(1)} km away · {p.kind}</span>{p.phone && <a href={`tel:${p.phone}`}>{p.phone}</a>}{p.hours && <span>Hours: {p.hours}</span>}<a href={`https://www.openstreetmap.org/directions?to=${p.lat},${p.lon}`} target="_blank" rel="noopener noreferrer">Directions ↗</a>{p.website && <a href={p.website} target="_blank" rel="noreferrer nofollow">Website ↗</a>}</div><a href={`https://www.openstreetmap.org/${p.osm}`} target="_blank" rel="noreferrer">View listing ↗</a></li>)}</ol>}<a className="small" href="https://www.openstreetmap.org/fixthemap">Report a map issue</a></>}
   </section>;
 }

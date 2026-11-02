@@ -22,16 +22,21 @@ How FixOdds tries to turn that into avoided waste: it gives an honest chance of 
 
 ## What is in the box
 
-- **Check an item.** Pick the item and tap the symptoms that fit (21 symptoms), or describe the problem in your own words in English, Dutch, German or French and matching symptoms are ticked automatically.
-- **Result.** A verdict, the three odds (fixed, repairable with more work or parts, end of life) as one bar, the number of real attempts behind them, and what moved the odds.
+- **Live check.** Search an item by name or common alias (MacBook, iPhone, Hoover), then tap symptoms to update the odds immediately, without submitting a form. Pick the item and tap the symptoms that fit (21 symptoms), or describe the problem in your own words in English, Dutch, German or French and matching symptoms are ticked automatically.
+- **Result.** A verdict, the three odds (fixed, repairable with more work or parts, end of life) as one bar, the number of real attempts behind them, and each selected symptom’s change in fixed-or-repairable percentage points, calculated by removing that symptom. Mobile devices get a sticky verdict and a full-result drawer.
 - **Impact.** Expected kg CO2e avoided and kg of e-waste kept in use, with the full-success figure beside each and the formula one tap away.
 - **Money (optional).** Enter a replacement price and optionally a repair quote to see the break-even repair spend. No prices are built in.
 - **What stops this repair.** The top recorded barriers for the item, each with a concrete action.
 - **Safety.** Smoke, burning, sparks, gas, water near electrics, swollen batteries, microwaves and opening mains-powered equipment (typed or ticked) override the verdict with a stop-and-get-a-professional notice.
-- **Find help.** On click only: the nearest of 20,034 mapped repair cafes and repair shops worldwide, computed on the device from a bundled OpenStreetMap extract (`scripts/build_places.py`) and shown on a Leaflet map, plus links to iFixit, Repair Cafe International and Restarters groups.
-- **Repair ticket.** One printable page to bring to a repair cafe, and a share link kept in the URL fragment. Your written description is left out of the link unless you tick a box.
+- **Find help.** Phone, opening hours and OSM directions when available. On click only: the nearest of 20,034 mapped repair cafes and repair shops worldwide, computed on the device from a bundled OpenStreetMap extract (`scripts/build_places.py`) and shown on a Leaflet map, plus links to iFixit, Repair Cafe International and Restarters groups.
+- **Repair ticket.** A printable hand-over ticket with agreed maximum spend, quote, condition checkboxes, notes and a QR code. A share link keeps these fields in the URL fragment and old links still open. Your written description is left out of the link unless you tick a box.
 - **My repair log.** Local to the browser. Totals of estimated CO2e and e-waste for repairs you completed, and CSV export using the Open Repair Data Standard column names.
 - **The method page.** The split, scores against baselines, a table of what actually happened for each verdict, a calibration chart, formulas, sources and limitations. All numbers on it come from `src/data/report.json`.
+
+- **Share an outlook.** Download a 1200×630 PNG with the item, verdict and available environmental estimates. File sharing is offered when the browser supports it. Images are created on the device.
+- **For repair groups.** An iframe snippet for the same check without the site navigation, with a GitHub contact link for embed, branding and data-report discussions.
+- **Theme and offline shell.** Auto, Light and Dark modes, local Inter fonts, keyboard item search, reduced-motion support and print styles. The service worker precaches the current hashed shell and model; optional pages and the finder are available offline after visiting them online. Place search and map tiles need a connection.
+- **Dataset context.** Before choosing an item, see 416,282 raw repair attempts and the impact estimated for the 202,076 successful repairs with a default category factor. This is past community repair activity, not FixOdds impact.
 
 ## How good is it? (held out, out of time and across groups)
 
@@ -97,6 +102,7 @@ cd ../.. && .venv/bin/python scripts/train.py
 - **Open Repair Alliance** repair data, [July 2026 aggregate v0.3](https://openrepair.org/open-data/downloads/), CC BY-SA 4.0. The model and statistics derived from it are shared under CC BY-SA 4.0 (see `DATA-LICENSE.md`).
 - **The Restart Project** ([restarters.net](https://github.com/TheRestartProject/restarters.net), GPL-3.0): category weights, footprints and the 0.5 displacement factor.
 - **OpenStreetMap** contributors (ODbL) bundled as `public/places.json` (extract via QLever) for the finder, with Nominatim for typed place search, shown with **Leaflet** (BSD-2-Clause). Nominatim is used lightly: one request per user action, throttled and cached.
+- Interface: **Tailwind CSS** and **@tailwindcss/vite** (MIT), **Motion** (MIT), **cmdk** (MIT), **Vaul** (MIT), **Radix UI** (MIT), **lucide-react** (ISC), **Inter / @fontsource-variable/inter** (SIL Open Font License 1.1), **qrcode-generator** (MIT), **clsx** (MIT), **tailwind-merge** (MIT), and **class-variance-authority** (Apache-2.0). The small `src/ui/` components follow the **shadcn/ui** pattern (MIT).
 - Code: GPL-3.0 (`LICENSE`).
 
 FixOdds is not endorsed by, affiliated with or reviewed by the Open Repair Alliance, The Restart Project, OpenStreetMap or Leaflet.
