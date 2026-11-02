@@ -1,0 +1,1 @@
+{"geocoder": "https://nominatim.openstreetmap.org/search", "tiles": "https://tile.openstreetmap.org/{z}/{x}/{y}.png", "radius": 15000}

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FixOdds">
+  <rect width="512" height="512" fill="#1c1a16"/>
+  <path d="M120 96h190l82 82v238H120z" fill="#f3eee3"/>
+  <path d="M310 96v82h82z" fill="#b8400c"/>
+  <circle cx="176" cy="152" r="18" fill="#1c1a16"/>
+  <text x="256" y="338" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="900" font-size="190" fill="#1c1a16">Fx</text>
+  <rect x="152" y="368" width="208" height="14" fill="#b8400c"/>
+</svg>

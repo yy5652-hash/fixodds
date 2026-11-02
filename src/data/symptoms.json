@@ -1,0 +1,23 @@
+{
+"no_power":{"label":"Won't turn on / no power","terms":[" won t turn on"," wont turn on"," will not turn on"," doesn t turn on"," does not turn on"," not turning on"," no power"," won t power"," dead "," won t start"," wont start"," doesn t start"," does not start"," not starting"," gaat niet aan"," start niet"," geen stroom"," doet niets"," startet nicht"," geht nicht an"," kein strom"," lässt sich nicht einschalten"," ne démarre pas"," ne demarre pas"," ne s allume pas"," ne s allume plus"," pas de courant"," ne démarre plus"]},
+"not_working":{"label":"Stopped working (not sure why)","terms":[" doesn t work"," does not work"," not working"," stopped working"," won t work"," werkt niet"," doet het niet"," funktioniert nicht"," geht nicht "," ne fonctionne pas"," ne fonctionne plus"," ne marche pas"," ne marche plus"," en panne"]},
+"intermittent":{"label":"Works on and off","terms":[" intermittent"," sometimes"," on and off"," cuts out"," cutting out"," af en toe"," soms "," wackel"," manchmal"," parfois"," par intermittence"]},
+"noise":{"label":"Strange noise","terms":[" noise"," noisy"," rattl"," grinding"," squeak"," buzz"," lawaai"," herrie"," maakt geluid"," ratel"," geräusch"," gerausch"," bruit"," laut "]},
+"no_sound":{"label":"No sound","terms":[" no sound"," no audio"," geen geluid"," kein ton"," pas de son"," plus de son"]},
+"screen":{"label":"Screen or picture problem","terms":[" screen"," display"," no picture"," no image"," scherm"," geen beeld"," bildschirm"," kein bild"," écran"," ecran"," pas d image"]},
+"physical_break":{"label":"Cracked or physically broken","terms":[" cracked"," snapped"," broken off"," broken part"," gebarsten"," afgebroken"," gebrochen"," abgebrochen"," cassé"," fissur"," fêlé"]},
+"battery":{"label":"Battery or charging","terms":[" battery"," batteries"," batterij"," accu "," akku"," batterie"," not charging"," won t charge"," doesn t charge"," does not charge"," laadt niet"," lädt nicht"," ne charge"," charger"," oplader"," ladegerät"," chargeur"]},
+"cable_plug":{"label":"Cable or plug damaged","terms":[" cable"," cord "," lead "," plug "," snoer"," kabel"," stekker"," stecker"," câble"," cordon"," fiche "]},
+"too_hot":{"label":"Gets too hot","terms":[" overheat"," too hot"," gets hot"," very hot"," oververhit"," wordt heet"," te heet"," überhitz"," wird heiß"," surchauffe"]},
+"no_heat":{"label":"Doesn't heat","terms":[" not heating"," doesn t heat"," does not heat"," no heat"," won t heat"," not getting hot"," warmt niet"," wordt niet warm"," wordt niet heet"," heizt nicht"," wird nicht warm"," wird nicht heiß"," ne chauffe pas"," ne chauffe plus"]},
+"leak":{"label":"Leaking","terms":[" leak"," lekt "," lekkage"," lek "," undicht"," tropft"," läuft aus"," fuite"," fuit "]},
+"stuck":{"label":"Stuck, jammed or clogged","terms":[" stuck"," jammed"," jams "," blocked"," clogged"," seized"," verstopt"," klemt"," zit vast"," blockiert"," klemmt"," verstopft"," coincé"," coince"," bloqué"," bloque"," bouché"]},
+"no_motion":{"label":"Motor or moving part won't move","terms":[" doesn t spin"," not spinning"," won t spin"," not turning"," no suction"," weak suction"," poor suction"," draait niet"," zuigt niet"," zuigt slecht"," dreht nicht"," dreht sich nicht"," saugt nicht"," saugt schlecht"," ne tourne pas"," ne tourne plus"," n aspire"," aspire mal"]},
+"liquid":{"label":"Liquid or water damage","terms":[" water damage"," spilled"," spillage"," dropped in water"," waterschade"," wasserschaden"," dégât des eaux"]},
+"dropped":{"label":"Was dropped","terms":[" dropped"," fell "," gevallen"," heruntergefallen"," runtergefallen"," tombé"," tombée"]},
+"button":{"label":"Button or switch","terms":[" button"," switch"," knop"," schakelaar"," schalter"," taste "," tasten"," bouton"," interrupteur"]},
+"software":{"label":"Slow, won't boot or software","terms":[" boot"," slow"," software"," windows"," virus"," password"," update"," opstart"," wachtwoord"," langzaam"," traag"," langsam"," passwort"," lent "," logiciel"," mot de passe"]},
+"media":{"label":"Disc or tape won't play","terms":[" cd "," cd player"," dvd"," cassette"," tape "," disc "," disk "," lecteur"]},
+"smell_smoke":{"label":"Smoke or burning smell","terms":[" smell"," smoke"," burning"," stinkt"," rook"," brandlucht"," brandt"," rauch"," schmor"," fumée"," odeur"," brûl"]},
+"sparks_trips":{"label":"Sparks or trips the electrics","terms":[" spark"," trips "," tripping"," vonk"," funken"," étincelle"," disjoncte"]}
+}
