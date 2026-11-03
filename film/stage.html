@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>FixOdds film stage</title>
+<style>
+@font-face{font-family:Inter;src:url(/fonts/inter-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+:root{--ink:#f4f1e9;--mute:#a9a395;--fix:#4cc38a;--amber:#e8b13a;--accent:#e8703a}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0d0c0a;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
+#bg{position:fixed;inset:0;background:radial-gradient(1100px 760px at 50% 42%,#1f1c17 0%,#12100d 62%,#0d0c0a 100%)}
+#grid{position:fixed;inset:-120px;background-image:linear-gradient(rgba(244,241,233,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(244,241,233,.045) 1px,transparent 1px);background-size:120px 120px;-webkit-mask-image:radial-gradient(closest-side,#000 25%,transparent 100%)}
+#cam{position:fixed;left:0;top:0;transform-origin:0 0;opacity:0;border-radius:18px;background:#12110e;box-shadow:0 60px 160px rgba(0,0,0,.65),0 0 0 1px rgba(244,241,233,.14),0 0 80px rgba(232,112,58,.05)}
+#clip{position:absolute;inset:0;border-radius:18px;overflow:hidden}
+#app{position:absolute;left:0;top:0;border:0;display:block}
+#spot{position:absolute;inset:0;pointer-events:none}
+#ring{position:absolute;border-radius:16px;box-shadow:0 0 0 2.5px var(--fix),0 0 44px rgba(76,195,138,.45);opacity:0;pointer-events:none}
+#cursor{position:absolute;left:0;top:0;width:28px;height:28px;pointer-events:none;opacity:0;filter:drop-shadow(0 3px 7px rgba(0,0,0,.55))}
+#ripple{position:absolute;width:64px;height:64px;margin:-32px;border-radius:50%;border:3px solid rgba(255,255,255,.9);opacity:0;pointer-events:none}
+.card{position:fixed;left:0;right:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;opacity:0;pointer-events:none;padding:0 6vmin}
+.card.top{justify-content:flex-start}
+.card.stamp{align-items:flex-end;justify-content:flex-start}
+.huge{font-size:21vmin;font-weight:760;letter-spacing:-.045em;line-height:1}
+.big{font-size:12.5vmin;font-weight:740;letter-spacing:-.04em;line-height:1.04}
+.mid{font-size:7.4vmin;font-weight:680;letter-spacing:-.03em;line-height:1.12}
+.small{font-size:3.1vmin;font-weight:480;color:var(--mute);letter-spacing:-.005em;line-height:1.3;margin-top:2.4vmin}
+.label{font-size:3.9vmin;font-weight:560;color:var(--ink);letter-spacing:-.015em;margin-top:2vmin}
+.fix{color:var(--fix)}.amb{color:var(--amber)}.dim{color:#8d8778}.acc{color:var(--accent)}
+.row{display:flex;gap:9vmin;align-items:flex-end;justify-content:center}
+body.portrait .row{gap:5vmin}
+body.portrait .huge{font-size:24vmin}
+body.portrait .big{font-size:14.5vmin}
+body.portrait .mid{font-size:9.6vmin}
+body.portrait .small{font-size:3.9vmin}
+body.portrait .row .big{font-size:10.4vmin}body.portrait .row .mid{font-size:7.6vmin}
+body.portrait .label{font-size:4.8vmin}
+.stampbox{background:rgba(18,17,14,.975);border:1.5px solid rgba(76,195,138,.5);border-radius:2.2vmin;padding:2.4vmin 3.4vmin;text-align:left;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.stampbox .n{font-size:9vmin;font-weight:760;letter-spacing:-.04em;line-height:1;color:var(--fix)}
+.stampbox .t{font-size:2.7vmin;font-weight:540;margin-top:1vmin;color:var(--ink)}
+body.portrait .stampbox .n{font-size:12vmin}body.portrait .stampbox .t{font-size:3.7vmin}
+#caption{position:fixed;left:0;right:0;bottom:5.4vh;display:flex;justify-content:center;pointer-events:none;padding:0 5vmin}
+#caption span{max-width:78%;background:rgba(10,9,7,.74);padding:.42em .78em;border-radius:.42em;font-size:3.5vmin;font-weight:540;line-height:1.26;text-align:center;letter-spacing:-.008em;color:#fbfaf6}
+body.portrait #caption{bottom:7.2vh}
+body.portrait #caption span{max-width:100%;font-size:4.9vmin}
+#brand{font-size:17vmin;font-weight:780;letter-spacing:-.05em}
+</style></head><body>
+<div id="bg"></div><div id="grid"></div>
+<div id="cam"><div id="clip"><iframe id="app" title="FixOdds"></iframe><div id="spot"></div></div><div id="ring"></div><div id="ripple"></div>
+<svg id="cursor" viewBox="0 0 28 28"><path d="M5 2.5 L5 22 L10.2 17.4 L14 25.2 L17.6 23.5 L13.8 15.9 L21 15.5 Z" fill="#fff" stroke="#16140f" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+<div id="cards"></div>
+<div id="caption"><span id="captext" style="visibility:hidden"></span></div>
+<script>
+const $=id=>document.getElementById(id);
+const S={W:innerWidth,H:innerHeight,cam:{x:720,y:405,s:1,rx:0,ry:0,op:0},camSeg:null,cur:{x:0,y:0,op:0},curSeg:null,spot:null,ring:null,ripple:null,cards:[],caps:[]};
+const ease=k=>{k=Math.min(1,Math.max(0,k));return k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2};
+const smooth=k=>{k=Math.min(1,Math.max(0,k));return k*k*(3-2*k)};
+window.stage={
+ init(o){document.body.classList.toggle('portrait',o.portrait);const a=$('app');a.width=o.w;a.height=o.h;a.style.width=o.w+'px';a.style.height=o.h+'px';const c=$('cam');c.style.width=o.w+'px';c.style.height=o.h+'px';S.cy=o.cy??.5;a.src=o.src;S.caps=o.caps||[]},
+ camSet(v){Object.assign(S.cam,v);S.camSeg=null},
+ camTo(t0,t1,v){S.camSeg={t0,t1,from:{...S.cam},to:{...S.cam,...v}}},
+ curTo(t0,t1,x,y){S.cur.op=1;if(t1<=t0){S.cur.x=x;S.cur.y=y;S.curSeg=null;return}S.curSeg={t0,t1,from:{x:S.cur.x,y:S.cur.y},to:{x,y}}},
+ curHide(){S.cur.op=0},
+ click(t,x,y){S.ripple={t,x,y}},
+ ring(r){S.ring=r},
+ spot(r){S.spot=r},
+ card(c){const el=document.createElement('div');el.className='card '+(c.cls||'');el.innerHTML=c.html;if(c.style)el.style.cssText+=c.style;$('cards').append(el);S.cards.push({...c,el});},
+ render(t){
+  if(S.camSeg){const g=S.camSeg,k=ease((t-g.t0)/(g.t1-g.t0));for(const p of Object.keys(g.to))S.cam[p]=g.from[p]+(g.to[p]-g.from[p])*k;if(t>=g.t1)S.camSeg=null}
+  const c=S.cam;
+  $('cam').style.opacity=c.op;
+  // Flat moves stay 2D: Chrome then repaints text at the current zoom instead of scaling a cached layer.
+  const tilt=Math.abs(c.rx)+Math.abs(c.ry)>.01?`perspective(2600px) rotateX(${c.rx}deg) rotateY(${c.ry}deg) `:'';
+  $('cam').style.transform=`translate(${S.W/2}px,${S.H*(S.cy??.5)}px) ${tilt}scale(${c.s}) translate(${-c.x}px,${-c.y}px)`;
+  $('grid').style.transform=`translate(${(t*7)%120}px,${(t*4)%120}px)`;
+  if(S.curSeg){const g=S.curSeg,k=ease((t-g.t0)/(g.t1-g.t0));S.cur.x=g.from.x+(g.to.x-g.from.x)*k;S.cur.y=g.from.y+(g.to.y-g.from.y)*k;if(t>=g.t1)S.curSeg=null}
+  const q=$('cursor');q.style.opacity=S.cur.op;q.style.transform=`translate(${S.cur.x-5}px,${S.cur.y-2}px)`;
+  const r=S.ripple,rp=$('ripple');if(r&&t>=r.t&&t<r.t+.42){const k=(t-r.t)/.42;rp.style.left=r.x+'px';rp.style.top=r.y+'px';rp.style.opacity=(1-k)*.9;rp.style.transform=`scale(${.35+k*.85})`}else rp.style.opacity=0;
+  const sp=$('spot');
+  if(S.spot&&t<S.spot.t1){const a=smooth((t-S.spot.t0)/.45)*smooth((S.spot.t1-t)/.45);sp.style.background=`radial-gradient(${S.spot.rx}px ${S.spot.ry}px at ${S.spot.x}px ${S.spot.y}px,transparent 62%,rgba(6,5,4,${.62*a}) 100%)`}else sp.style.background='none';
+  const rg=$('ring');
+  if(S.ring&&t<S.ring.t1){const a=smooth((t-S.ring.t0)/.35)*smooth((S.ring.t1-t)/.35);rg.style.opacity=a;Object.assign(rg.style,{left:S.ring.x+'px',top:S.ring.y+'px',width:S.ring.w+'px',height:S.ring.h+'px'})}else rg.style.opacity=0;
+  for(const d of S.cards){
+   const fade=d.fade??.35,a=smooth((t-d.t0)/fade)*(d.t1>=1e8?1:smooth((d.t1-t)/fade));
+   d.el.style.opacity=a;d.el.style.visibility=a>0?'visible':'hidden';
+   if(d.rise!==0)d.el.style.transform=`translateY(${(1-smooth((t-d.t0)/(fade*1.6)))*(d.rise??18)}px) scale(${1+(d.drift??.018)*Math.max(0,t-d.t0)/Math.max(1,d.t1-d.t0)})`;
+   for(const n of d.el.querySelectorAll('[data-to]')){const from=+n.dataset.from,to=+n.dataset.to,ds=+n.dataset.dur||1.6,ts=d.t0+(+n.dataset.delay||0);const k=1-Math.pow(1-Math.min(1,Math.max(0,(t-ts)/ds)),3);n.textContent=Math.round(from+(to-from)*k).toLocaleString('en-US')}
+   for(const n of d.el.querySelectorAll('[data-in]')){const ts=d.t0+ +n.dataset.in;const k=smooth((t-ts)/.4);n.style.opacity=k;n.style.transform=`translateY(${(1-k)*14}px)`}
+  }
+  const cap=S.caps.find(x=>t>=x.t0&&t<x.t1),ct=$('captext');
+  if(cap){ct.style.visibility='visible';ct.textContent=cap.text;const a=smooth((t-cap.t0)/.12)*smooth((cap.t1-t)/.12);ct.style.opacity=a}else ct.style.visibility='hidden';
+ }
+};
+</script></body></html>

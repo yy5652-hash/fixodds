@@ -2,6 +2,8 @@
 
 **Will a repair work? Check the odds before you replace it.**
 
+**Live:** https://yy5652-hash.github.io/fixodds/
+
 FixOdds is a free, static web app. You say what broke (an item, optionally its age and brand, and the symptoms), and it shows the chance that the repair works, based on 403,558 real repair attempts recorded by community repair groups. It then shows the emissions and e-waste a successful repair could avoid, what could stop the repair, a printable repair ticket, a repairer finder, and a personal log you can export in the Open Repair Data Standard.
 
 It runs entirely in your browser. There is no account, no backend and no analytics. Your description never leaves the device.
@@ -77,6 +79,9 @@ npm run test:e2e     # end-to-end flow, map services mocked
 ```
 
 The build is static with relative paths: copy `dist/` to any static host.
+Every push to `main` deploys to GitHub Pages through `.github/workflows/pages.yml`.
+
+The demo film is rendered from the real build: `film/render.cjs` steps a headless browser frame by frame, `film/mix.py` lays the narration over the music.
 
 ## Retrain the model
 

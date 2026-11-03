@@ -34,6 +34,7 @@ small,.small,.optional,.sub { color:var(--muted); font-size:12px; line-height:1.
 .theme-label { display:flex; gap:8px; align-items:center; font-size:12px; color:var(--muted); }
 .theme-label select { width:auto; margin:0; padding:8px; min-height:44px; }
 main { max-width:1160px; margin:auto; padding:12px 24px 48px; min-height:60vh; outline:none; }
+main:focus-visible { outline:none; }
 .card,.ticket-sheet { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:24px; box-shadow:var(--shadow); min-width:0; }
 .check-layout { display:grid; grid-template-columns:minmax(0,1fr); gap:20px; align-items:start; }
 .check-form h1 { font-size:32px; max-width:14em; margin-bottom:22px; }
