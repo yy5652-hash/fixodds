@@ -1,0 +1,117 @@
+[
+ {
+  "id": "s01",
+  "say": "It stopped working. Do you bin it?",
+  "cap": "It stopped working. Do you bin it?"
+ },
+ {
+  "id": "s02",
+  "say": "Replacing feels safe, because nobody can tell you the odds.",
+  "cap": "Replacing feels safe, because nobody can tell you the odds."
+ },
+ {
+  "id": "s03a",
+  "say": "Repair groups in dozens of countries have logged more than four hundred thousand real repair attempts.",
+  "cap": "Repair groups in dozens of countries have logged more than 400,000 real repair attempts."
+ },
+ {
+  "id": "s03b",
+  "say": "Fix Odds turns them into odds, before you decide.",
+  "cap": "FixOdds turns them into odds, before you decide."
+ },
+ {
+  "id": "s04a",
+  "say": "Pick the item and the symptoms, or describe them in English, Dutch, German or French.",
+  "cap": "Pick the item and the symptoms, or describe them in English, Dutch, German or French."
+ },
+ {
+  "id": "s04b",
+  "say": "That description stays on your device.",
+  "cap": "That description stays on your device."
+ },
+ {
+  "id": "s05",
+  "say": "Repair first. In this model, fixed or repairable eighty-six percent of the time.",
+  "cap": "Repair first. In this model, fixed or repairable 86% of the time."
+ },
+ {
+  "id": "s06a",
+  "say": "It was tested on later repairs, from groups it never saw in training.",
+  "cap": "It was tested on later repairs, from groups it never saw in training."
+ },
+ {
+  "id": "s06b",
+  "say": "The top band was fixed or repairable eighty-eight percent of the time.",
+  "cap": "The top band was fixed or repairable 88% of the time."
+ },
+ {
+  "id": "s06c",
+  "say": "The lowest, sixty-one.",
+  "cap": "The lowest, 61."
+ },
+ {
+  "id": "s07a",
+  "say": "Weighted by those odds, this repair is worth about seventy-three kilograms of C O two equivalent, and a hundred and thirty-three if it's fixed.",
+  "cap": "Weighted by those odds, this repair is worth about 73 kg of CO₂ equivalent, and 133 if it's fixed."
+ },
+ {
+  "id": "s07b",
+  "say": "Nearly two kilograms of electronics stay in use.",
+  "cap": "Nearly 2 kg of electronics stay in use."
+ },
+ {
+  "id": "s07c",
+  "say": "The factors are The Restart Project's, halved, because not every repair replaces a purchase.",
+  "cap": "The factors are The Restart Project's, halved, because not every repair replaces a purchase."
+ },
+ {
+  "id": "s08a",
+  "say": "Across this dataset, two hundred and two thousand, and seventy-six recorded fixes come to about five thousand four hundred tonnes of C O two equivalent.",
+  "cap": "Across this dataset, 202,076 recorded fixes come to about 5,400 tonnes of CO₂ equivalent."
+ },
+ {
+  "id": "s08b",
+  "say": "That is what repair already does.",
+  "cap": "That is what repair already does."
+ },
+ {
+  "id": "s08c",
+  "say": "Fix Odds exists to send more items down that path.",
+  "cap": "FixOdds exists to send more items down that path."
+ },
+ {
+  "id": "s12",
+  "say": "Fix Odds. Give repair a fair chance.",
+  "cap": "FixOdds. Give repair a fair chance."
+ },
+ {
+  "id": "n09a",
+  "say": "Then it shows three ways to get it fixed: yourself, with a matching eye-fix-it guide; free, at a repair cafe; or paid, at a shop.",
+  "cap": "Then it shows three ways to get it fixed: yourself, with a matching iFixit guide; free, at a repair cafe; or paid, at a shop."
+ },
+ {
+  "id": "n09b",
+  "say": "It suggests the first step.",
+  "cap": "It suggests the first step."
+ },
+ {
+  "id": "n10",
+  "say": "Nine hundred and fifty-four upcoming repair events, from thirteen networks, with a reminder the day before.",
+  "cap": "954 upcoming repair events, from 13 networks, with a reminder the day before."
+ },
+ {
+  "id": "n11",
+  "say": "Or message a repairer near you, by text, WhatsApp or email, with a short link to your repair ticket.",
+  "cap": "Or message a repairer near you, by text, WhatsApp or email, with a short link to your repair ticket."
+ },
+ {
+  "id": "n12",
+  "say": "Every item has a measured repair record: by age, by problem, and by brand.",
+  "cap": "Every item has a measured repair record: by age, by problem, and by brand."
+ },
+ {
+  "id": "n13",
+  "say": "Track the repair to done, in five languages.",
+  "cap": "Track the repair to done, in five languages."
+ }
+]
