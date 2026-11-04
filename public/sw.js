@@ -2,7 +2,7 @@
 // Only same-origin requests are handled. Map tiles and geocoding are never intercepted, so they always hit the network.
 const BUILD_ASSETS = /* BUILD_ASSETS */ [];
 const CACHE = 'fixodds-redesign-' + BUILD_ASSETS.join('|');
-const SHELL = ['./', './index.html', './model.json', './services.json', './manifest.webmanifest', './icon.svg', ...BUILD_ASSETS];
+const SHELL = ['./', './index.html', './model.json', './services.json', './manifest.webmanifest', './icon.svg', './icon-192.png', ...BUILD_ASSETS];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));

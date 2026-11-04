@@ -94,8 +94,19 @@ test('live odds, aliases, privacy, finder, PNG, ticket QR, log and method',async
   await expect(page.getByRole('img',{name:'QR code to open this repair ticket'})).toBeVisible();
   await expect(page.locator('.site-header')).toBeHidden();
   await page.emulateMedia({media:'screen'});
-  await page.getByRole('link',{name:'My log',exact:true}).click();
+  await page.getByRole('link',{name:'My repairs',exact:true}).click();
+  await page.getByRole('button',{name:'Track my laptop repair'}).click();
+  await page.getByLabel('Where').fill('Test Repair Cafe');
+  await page.getByLabel('Appointment').fill('2030-01-05T10:30');
+  await expect(page.locator('.stepper [aria-current="step"]')).toContainText('Booked');
+  const visit=page.waitForEvent('download');await page.getByRole('button',{name:'Add appointment to calendar'}).click();
+  expect(readFileSync((await (await visit).path())!,'utf8')).toContain('SUMMARY:Repair: Laptop at Test Repair Cafe');
+  await page.getByRole('button',{name:'Record the outcome'}).click();
+  await page.getByLabel('Repair warranty ends').fill('2099-01-01');
   await page.getByRole('button',{name:'Save outcome'}).click();
+  await expect(page.locator('.job')).toHaveCount(0);
+  await expect(page.locator('.log-list')).toContainText('Test Repair Cafe');
+  await expect(page.locator('.warranty')).toContainText('until 2099-01-01');
   await expect(page.locator('.log-totals strong').first()).toHaveText('1');
   const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export ORDS CSV'}).click();
   const csv=readFileSync((await (await download).path())!,'utf8');
@@ -171,11 +182,11 @@ test('390px mobile pages, drawer, groups and embed have no horizontal scroll in 
     await page.locator('.mobile-result').click();
     await expect(page.getByRole('dialog')).toBeVisible();await noHorizontalScroll(page);
     await page.getByRole('button',{name:'Close result'}).click();
-    for (const hash of ['#/result','#/ticket','#/log','#/method','#/groups','#/embed']) {
+    for (const hash of ['#/result','#/ticket','#/log','#/method','#/groups','#/embed','#/events','#/items','#/item/vacuum']) {
       await page.evaluate(h=>{location.hash=h;},hash);
       await expect(page.locator('main')).toBeVisible();
       if(hash==='#/result')await expect(page.locator('main .verdict')).toBeVisible();
-      if(hash==='#/log')await expect(page.getByRole('heading',{level:1})).toHaveText('My repair log.');
+      if(hash==='#/log')await expect(page.getByRole('heading',{level:1})).toHaveText('My repairs.');
       if(hash==='#/method')await expect(page.locator('.calibration')).toBeVisible();
       if(hash==='#/ticket')await expect(page.locator('.ticket-qr img')).toBeVisible();
       if(hash==='#/groups')await expect(page.getByLabel('Embed code')).toHaveValue(/#\/embed/);

@@ -135,7 +135,7 @@ export function decodeTicket(hash: string): { input: Input; includesProblem: boo
     return payload.v === 1 && input ? { input, includesProblem: payload.includesProblem === true } : null;
   } catch { return null; }
 }
-export type LogEntry = { id: string; date: string; input: Input; status: Status };
+export type LogEntry = { id: string; date: string; input: Input; status: Status; warranty?: string; where?: string };
 export function readLog(): { entries: LogEntry[]; error: string } {
   try {
     const raw = localStorage.getItem('fixodds-log-v1');
@@ -146,10 +146,28 @@ export function readLog(): { entries: LogEntry[]; error: string } {
       if (!r || typeof r !== 'object') return [];
       const x = r as LogEntry;
       const input = cleanInput(x.input);
-      return input && typeof x.id === 'string' && typeof x.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.date) && statuses.includes(x.status) ? [{ id: x.id, date: x.date, status: x.status, input }] : [];
+      return input && typeof x.id === 'string' && typeof x.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.date) && statuses.includes(x.status) ? [{ id: x.id, date: x.date, status: x.status, input, ...(typeof x.warranty === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.warranty) ? { warranty: x.warranty } : {}), ...(typeof x.where === 'string' && x.where ? { where: x.where.slice(0, 120) } : {}) }] : [];
     });
     return { entries, error: entries.length !== parsed.length ? 'Some damaged entries could not be read. Export the readable records before changing this log.' : '' };
   } catch { return { entries: [], error: 'This browser could not read your repair log. Storage may be blocked or damaged. New entries will stay in this tab; export CSV before leaving.' }; }
+}
+// Repairs in progress: planned, booked or with a repairer. Finishing one moves it into the log.
+export const stages = ['Planned', 'Booked', 'With the repairer'] as const;
+export type Stage = typeof stages[number];
+export type Job = { id: string; created: string; input: Input; stage: Stage; where: string; appointment: string };
+export function readJobs(): Job[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem('fixodds-jobs-v1') || '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((r: unknown) => {
+      const x = r as Job; const input = r && typeof r === 'object' ? cleanInput(x.input) : null;
+      return input && typeof x.id === 'string' && stages.includes(x.stage) && typeof x.created === 'string' ? [{ id: x.id, created: x.created, input, stage: x.stage, where: typeof x.where === 'string' ? x.where.slice(0, 120) : '', appointment: typeof x.appointment === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(x.appointment) ? x.appointment : '' }] : [];
+    });
+  } catch { return []; }
+}
+export function saveJobs(jobs: Job[]): string {
+  try { localStorage.setItem('fixodds-jobs-v1', JSON.stringify(jobs)); return ''; }
+  catch { return 'Your browser could not save repairs in progress. They remain in this tab only.'; }
 }
 export function saveLog(entries: LogEntry[]): string {
   try { localStorage.setItem('fixodds-log-v1', JSON.stringify(entries)); return ''; }
