@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import statsData from './data/stats.json';
 import factorData from './data/factors.json';
 import symptomJson from './data/symptoms.json';
@@ -85,7 +86,8 @@ export function impact(pFixed: number, factor: Factor) {
 export const breakEven = (feasible: number, replacement: number) => feasible * replacement;
 export function quotePasses(feasible: number, replacement: number, quote: number) { return quote <= breakEven(feasible, replacement); }
 export const friendly: Record<string, string> = { 'Mobile': 'Mobile phone', 'Flat screen': 'TV or monitor', 'Misc': 'Other electrical item', 'PC accessory': 'Computer accessory', 'Large home electrical': 'Large household appliance', 'Small home electrical': 'Small household appliance', 'Hi-Fi integrated': 'Hi-fi system', 'Hi-Fi separates': 'Hi-fi component', 'Hair & beauty item': 'Hair & beauty appliance', 'Battery/charger/adapter': 'Battery, charger or adapter' };
-export const label = (category: string) => friendly[category] || category;
+export const englishLabel = (category: string) => friendly[category] || category;
+export const label = (category: string) => t(englishLabel(category));
 
 const safetyRules: [string, RegExp][] = [
   ['Swollen or damaged battery', /swoll\w*|bulg\w*|bloated|hinchad\w*|gonfi\w*|inchad\w*|opgezwoll\w*|aufgebl\w*|geschwoll\w*|battery.{0,20}(leak|punctur)|batter\w*.{0,20}(gonfl|geschwoll|aufgebl|hinch|opgezwoll|inflat|inchad)|accu.{0,15}(bol|opgezwoll)|鼓包|电池.{0,6}(膨胀|漏液)|電池.{0,6}(膨脹|漏液)/iu],

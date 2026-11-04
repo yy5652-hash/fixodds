@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { type Input, type Model } from './core';
 import { shareCardLines } from './share-lines';
 export async function shareCard(input: Input, model: Model): Promise<string> {
@@ -29,7 +30,7 @@ export async function shareCard(input: Input, model: Model): Promise<string> {
   const a = document.createElement('a'); a.href = url; a.download = file.name; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 30000);
   if (navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: 'FixOdds repair outlook' }); }
+    try { await navigator.share({ files: [file], title: t('FixOdds repair outlook') }); }
     catch { return 'PNG downloaded. Sharing was closed or unavailable.'; }
   }
   return 'PNG downloaded.';

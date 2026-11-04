@@ -1,6 +1,7 @@
+import { t, useLang } from './i18n';
 import report from './data/report.json';
 import golden from './data/golden.json';
-import { categories, factors, label, symptomData, symptomIds } from './core';
+import { categories, factors, englishLabel, symptomData, symptomIds } from './core';
 import { number, percent } from './format';
 
 const rows = [
@@ -29,6 +30,7 @@ function Calibration() {
 }
 
 export function Method() {
+  const { lang } = useLang();
   const m = report.metrics;
   const leakAuc = report.limitations.join(' ').match(/AUC (\d\.\d+)/)?.[1];
   const unquantified = categories.filter(c => !factors[c].variants.length);
@@ -37,12 +39,13 @@ export function Method() {
   const modelBetter = m.model.logLoss < m.category.logLoss;
   const limitations = report.limitations.filter(l => !/free[- ]text|^Community events|^Brier|^Impact is/.test(l));
   return <article className="method">
-    <p className="eyebrow">Open evidence / Honest limits</p>
-    <h1>Odds, with the working shown.</h1>
-    <p className="intro">FixOdds uses the outcomes of past community repairs to help you decide what to try next. It cannot diagnose a fault or promise a repair. Every number on this page is read from the files the model was built from.</p>
+    {lang!=='en'&&<p className="notice">{t('This page is in English so the method stays exact.')}</p>}
+    <p className="eyebrow">{t('Open evidence / Honest limits')}</p>
+    <h1>{t("Odds, with the working shown.")}</h1>
+    <p className="intro">{t("FixOdds uses the outcomes of past community repairs to help you decide what to try next. It cannot diagnose a fault or promise a repair. Every number on this page is read from the files the model was built from.")}</p>
 
     <section className="ruled" id="evidence">
-      <h2>Tested on later events, at different repair groups</h2>
+      <h2>{t("Tested on later events, at different repair groups")}</h2>
       <p>Source: {number(report.rawRows)} Open Repair Alliance attempts (July 2026 aggregate, v0.3). {number(report.unknownDropped)} with an unknown outcome are dropped, leaving {number(report.knownRows)}. For testing, the model learns from {number(report.split.trainN)} attempts made before {report.split.cutoff} at {number(report.split.trainGroups)} repair groups, and is scored on {number(report.split.testN)} attempts from {report.split.testStart} to {report.split.testEnd} at {number(report.split.testGroups)} other groups. No group appears on both sides ({report.split.groupOverlap} overlap), and 30% of repair groups are held out for evaluation.</p>
       <p>{number(report.split.excludedByDesign)} records are left out by design (older records from held-out groups, and later records from training groups). This is strict on purpose: it tests the model on groups and months it has never seen. The shipped model is then refit on all {number(report.model.trainedOnRows)} usable records with the same recipe.</p>
       <div className="table-scroll"><table>
@@ -55,7 +58,7 @@ export function Method() {
     </section>
 
     <section className="ruled" id="bands">
-      <h2>When FixOdds says Repair first, what happened?</h2>
+      <h2>{t("When FixOdds says Repair first, what happened?")}</h2>
       <p>Each held-out attempt was given a verdict from the model alone, then compared with what actually happened. This is the most direct evidence that the verdict means something.</p>
       <div className="table-scroll"><table className="bands">
         <caption>Held-out outcomes by verdict (F is the chance of Fixed plus Repairable).</caption>
@@ -66,7 +69,7 @@ export function Method() {
     </section>
 
     <section className="ruled" id="calibration">
-      <h2>Do the probabilities match reality?</h2>
+      <h2>{t("Do the probabilities match reality?")}</h2>
       <p>Held-out attempts were sorted into ten equal-width bins of predicted P(Fixed). Each point is the fixed rate actually observed in that bin; the diagonal is perfect calibration, and larger points hold more attempts. This describes past records, not future users.</p>
       <Calibration />
       <details><summary>Read all calibration values</summary><div className="table-scroll"><table>
@@ -76,33 +79,33 @@ export function Method() {
     </section>
 
     <section className="ruled" id="words">
-      <h2>Why free-text words are not used</h2>
+      <h2>{t("Why free-text words are not used")}</h2>
       <p>In the repair data the “problem” field is mostly written after the repair is over. Words such as “replaced”, “soldered” or “not repairable” therefore describe the outcome rather than the fault. {leakAuc ? `A model trained on those words scored a held-out AUC of ${leakAuc}, but only because it was reading the answer. ` : 'A model trained on those words looks far more accurate, but only because it is reading the answer. '}That is not something a person could know before deciding, so it is excluded.</p>
       <p>Instead FixOdds uses {symptomIds.length} symptoms that a person can report before any repair: {symptomIds.map(id => symptomData[id].label.toLowerCase()).join('; ')}. Each is matched against fixed word lists in English, Dutch, German and French, and a test checks that no list contains outcome language. The honest consequence is that the headline accuracy is modest. We chose a modest number we can defend over a high one that would not survive contact with a real user.</p>
     </section>
 
     <section className="ruled" id="verdicts">
-      <h2>How an estimate becomes a next step</h2>
+      <h2>{t("How an estimate becomes a next step")}</h2>
       <p>F = P(Fixed) + P(Repairable). “Repairable” means more work or parts are needed; it is not a completed repair.</p>
       <ul>{report.verdictBands.map(b => <li key={b.verdict}>F at least {number(b.low, 2)}: <strong>{b.verdict}</strong>{b.low === 0 ? ' (the rest)' : ''}</li>)}</ul>
       <p>The cut-offs are fixed in the code, and the table above reports what actually happened in each band on data the model never saw. Safety notices override the verdict at every level. Keyword checks cover English, French, German, Spanish, Dutch, Italian, Portuguese and Chinese but cannot recognise every hazard or language, so the absence of a notice does not mean an item is safe.</p>
-      <h3>Environmental and money formulas</h3>
+      <h3>{t("Environmental and money formulas")}</h3>
       <p>Expected kg CO₂e avoided = P(Fixed) × category footprint × 0.5.<br />Expected kg of e-waste kept in use = P(Fixed) × category weight.<br />The full-success figure and every logged Fixed outcome use P(Fixed) = 1.<br />Break-even repair spend = F × the replacement price you enter. No prices are built in.</p>
-      <p>Weights and footprints are category averages from The Restart Project’s current <code>up()</code> migration values, matched by category name. The 0.5 is their displacement factor: the assumption that half of repairs prevent a new purchase. Laptop defaults to medium and flat screens to 22–24 inches; hair dryer and food processor use labelled broader-category proxies. {unquantified.length} categories have no factor and are left unquantified rather than invented: {unquantified.map(c => label(c).toLowerCase()).join(', ')}.</p>
+      <p>Weights and footprints are category averages from The Restart Project’s current <code>up()</code> migration values, matched by category name. The 0.5 is their displacement factor: the assumption that half of repairs prevent a new purchase. Laptop defaults to medium and flat screens to 22–24 inches; hair dryer and food processor use labelled broader-category proxies. {unquantified.length} categories have no factor and are left unquantified rather than invented: {unquantified.map(c => englishLabel(c).toLowerCase()).join(', ')}.</p>
       <details><summary>Audit every category factor</summary><div className="table-scroll"><table>
         <thead><tr><th scope="col">Category</th><th scope="col">Restart factor</th><th scope="col">kg</th><th scope="col">kg CO₂e</th></tr></thead>
-        <tbody>{categories.flatMap(cat => factors[cat].variants.length ? factors[cat].variants.map(v => <tr key={cat + v.name}><th scope="row">{label(cat)}{factors[cat].estimated ? ' (estimated)' : ''}</th><td>{v.name}{v.name === factors[cat].default ? ' · default' : ''}</td><td>{v.weight}</td><td>{v.footprint}</td></tr>) : [<tr key={cat}><th scope="row">{label(cat)}</th><td colSpan={3}>Unquantified</td></tr>])}</tbody>
+        <tbody>{categories.flatMap(cat => factors[cat].variants.length ? factors[cat].variants.map(v => <tr key={cat + v.name}><th scope="row">{englishLabel(cat)}{factors[cat].estimated ? ' (estimated)' : ''}</th><td>{v.name}{v.name === factors[cat].default ? ' · default' : ''}</td><td>{v.weight}</td><td>{v.footprint}</td></tr>) : [<tr key={cat}><th scope="row">{englishLabel(cat)}</th><td colSpan={3}>Unquantified</td></tr>])}</tbody>
       </table></div></details>
     </section>
 
     <section className="ruled" id="model">
-      <h2>What goes into the model</h2>
+      <h2>{t("What goes into the model")}</h2>
       <p>Multinomial logistic regression with {number(report.model.features)} binary features: item category, age bucket (including unknown), the most common brands in the training data plus other and unknown, the {report.model.symptoms} symptoms, and category-by-symptom pairs. Provider, country, group and event date are never inputs. Browser predictions match {golden.length} exported Python predictions within 0.000001.</p>
       <p>The model file is {number(report.model.gzipBytes / 1024, 1)} KiB gzipped. Predictions run on your device; there are no accounts, no analytics and no backend. The optional finder sends only your place or coordinates to OpenStreetMap services; outbound guide links include the item category and brand, never your description.</p>
     </section>
 
     <section className="ruled" id="limits">
-      <h2>Limitations</h2>
+      <h2>{t("Limitations")}</h2>
       <ul>
         <li>The data comes from community repair events, not paid repair shops. Volunteers, visitors and the items they bring are not a random sample of broken things.</li>
         <li>Outcomes are self-reported and recorded by volunteers, and the categories are broad.</li>
@@ -114,7 +117,7 @@ export function Method() {
     </section>
 
     <section className="ruled" id="sources">
-      <h2>Sources and reuse</h2>
+      <h2>{t("Sources and reuse")}</h2>
       <p><a href="https://openrepair.org/open-data/downloads/">Open Repair Alliance data</a> (<a href="https://media.githubusercontent.com/media/openrepair/data/main/OpenRepairData_v0.3_aggregate_202607_eee.csv">July 2026 aggregate</a>), CC BY-SA 4.0. <a href="https://github.com/TheRestartProject/restarters.net">The Restart Project restarters.net</a>, GPL-3.0, for the category factors and displacement assumption. <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> (ODbL) for the optional finder, shown with <a href="https://leafletjs.com/">Leaflet</a>. None of these organisations has endorsed or reviewed FixOdds.</p>
       <p>Code is GPL-3.0. The model and statistics derived from Open Repair Alliance data are CC BY-SA 4.0. See DATA-LICENSE.md in the repository.</p>
     </section>

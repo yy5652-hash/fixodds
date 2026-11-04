@@ -152,7 +152,7 @@ test('item repair records, brand comparison and a check started from an item pag
   await expect(page.locator('.result-card').first()).toContainText('Vacuum');
   await page.getByRole('button',{name:'Sharpen the odds'}).click();
   await page.getByLabel('Brand').fill('Dyson');
-  await expect(page.locator('.brand-line')).toContainText('Dyson vacuums: fixed in');
+  await expect(page.locator('.brand-line')).toContainText('Dyson Vacuum: fixed in');
   await page.getByRole('button',{name:'Battery or charging'}).click();
   await expect(page.getByRole('heading',{name:'Real repairs like yours'})).toBeVisible();
   await expect(page.locator('.case-list li').first()).toBeVisible();
@@ -226,4 +226,32 @@ test('offline shell and previously visited ticket load after installation',async
     await page.getByRole('button',{name:'Make a repair ticket',exact:true}).click();
     await expect(page.locator('.ticket-qr img')).toBeVisible();
   } finally {await context.close();}
+});
+
+test('German and Chinese mobile interface keeps search and Vacuum example working',async({page})=>{
+  await page.setViewportSize({width:375,height:812});
+  await mockMapServices(page);
+  await page.goto('/');
+  for(const language of [
+    {name:'Deutsch',code:'de',nav:['Prüfen','Reparatur-Termine','Reparaturdaten','Meine Reparaturen','Methode','Für Gruppen'],search:'Was ist kaputt?',laptop:'Laptop',vacuum:'Staubsauger'},
+    {name:'简体中文',code:'zh',nav:['检测','维修活动','维修统计','我的维修','计算方法','面向组织'],search:'什么坏了？',laptop:'笔记本电脑',vacuum:'吸尘器'},
+  ]) {
+    await page.getByRole('combobox',{name:'Language',exact:true}).selectOption({label:language.name});
+    await expect(page.locator('html')).toHaveAttribute('lang',language.code);
+    await expect(page.locator('.site-header nav a')).toHaveText(language.nav);
+    await noHorizontalScroll(page);
+    const search=page.getByRole('combobox',{name:language.search,exact:true});
+    await search.fill('MacBook');
+    await page.getByRole('option',{name:language.laptop,exact:true}).click();
+    await expect(page.locator('.result-card > .eyebrow')).toContainText(language.laptop);
+    await page.getByRole('button',{name:language.vacuum,exact:true}).click();
+    await expect(search).toHaveValue(language.vacuum);
+    await expect(page.locator('.result-card > .eyebrow')).toContainText(language.vacuum);
+    await expect(page.locator('.odds-labels').first()).not.toContainText('Fixed');
+    await noHorizontalScroll(page);
+    await page.reload();
+    await expect(page.getByRole('combobox',{name:'Language',exact:true})).toHaveValue(language.code);
+    await expect(page.locator('.site-header nav a')).toHaveText(language.nav);
+    await noHorizontalScroll(page);
+  }
 });

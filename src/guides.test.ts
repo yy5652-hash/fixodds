@@ -28,3 +28,11 @@ test('enquiries carry the ticket link and open WhatsApp only for international n
   expect(links.whatsapp.startsWith('https://wa.me/441234567890?text=')).toBe(true);
   expect(enquiryLinks(text, '', 'x').sms).toBe('');
 });
+import { suggestRoute } from './routes';
+test('DIY is suggested only for an easy guide once a symptom is known, never when unsafe', () => {
+  const easy = [{ id: 1, title: 'x', url: 'https://www.ifixit.com/Guide/x/1', difficulty: 'Very easy', minutes: 1, image: '', author: '', type: '' }];
+  expect(suggestRoute(0.8, false, easy, null, true)).toBe('diy');
+  expect(suggestRoute(0.8, false, easy, null, false)).toBe('cafe');
+  expect(suggestRoute(0.8, true, easy, null, true)).toBe('shop');
+  expect(suggestRoute(0.3, false, [], null, true)).toBe('shop');
+});

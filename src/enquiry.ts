@@ -1,5 +1,5 @@
 // Ready-to-send repair enquiries. FixOdds only builds the text; the person sends it from their own phone or mail app.
-import { inputSymptoms, label, symptomData, type Input } from './core';
+import { inputSymptoms, englishLabel as label, symptomData, type Input } from './core';
 export function enquiryText(input: Input, ticketUrl: string, place?: string) {
   const symptoms = inputSymptoms(input).map(id => symptomData[id].label.toLowerCase());
   const item = [input.brand.trim(), label(input.category).toLowerCase()].filter(Boolean).join(' ');

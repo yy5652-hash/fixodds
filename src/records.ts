@@ -1,5 +1,6 @@
 // Measured repair records by category and brand, and similar real cases, from public/insights.json and public/cases/.
-import { categories, inputSymptoms, label, normalize, symptomIds, type Input } from './core';
+import { locale as currentLocale } from './i18n';
+import { categories, inputSymptoms, englishLabel as label, normalize, symptomIds, type Input } from './core';
 export type Row = [string, number, number, number];
 export type CategoryRecord = { all: [number, number, number]; ages: Row[]; brands: Row[]; countries: Row[]; providers: Row[]; years: Row[]; symptoms: Row[]; case: number };
 export type Insights = { minBrand: number; categories: Record<string, CategoryRecord> };
@@ -45,7 +46,7 @@ export function similarCases(cases: Case[], input: Input, limit = 5): Case[] {
   return scored.sort((a, b) => b.s - a.s || Number(b.c.year) - Number(a.c.year) || a.i - b.i).slice(0, limit).map(x => x.c);
 }
 const iso3: Record<string, string> = { GBR: 'GB', NLD: 'NL', DEU: 'DE', BEL: 'BE', DNK: 'DK', FRA: 'FR', CAN: 'CA', NZL: 'NZ', AUS: 'AU', USA: 'US', ITA: 'IT', ESP: 'ES', NOR: 'NO', AUT: 'AT', JEY: 'JE', ARG: 'AR', SWE: 'SE', ISR: 'IL', PRT: 'PT', HKG: 'HK', IRL: 'IE', TUN: 'TN', CHE: 'CH', ISL: 'IS', TWN: 'TW', UGA: 'UG', KOR: 'KR', FIN: 'FI', LUX: 'LU', GUF: 'GF', LIE: 'LI', MYS: 'MY', ZAF: 'ZA', BEN: 'BJ' };
-export function countryName(code: string, locale = 'en') {
+export function countryName(code: string, locale = currentLocale()) {
   try { return iso3[code] ? new Intl.DisplayNames([locale], { type: 'region' }).of(iso3[code]) || code : code; } catch { return code; }
 }
 export const slug = (category: string) => label(category).toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
