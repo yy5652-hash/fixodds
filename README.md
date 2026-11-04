@@ -31,6 +31,9 @@ How FixOdds tries to turn that into avoided waste: it gives an honest chance of 
 - **What stops this repair.** The top recorded barriers for the item, each with a concrete action.
 - **Safety.** Smoke, burning, sparks, gas, water near electrics, swollen batteries, microwaves and opening mains-powered equipment (typed or ticked) override the verdict with a stop-and-get-a-professional notice.
 - **Find help.** Phone, opening hours and OSM directions when available. On click only: the nearest of 20,034 mapped repair cafes and repair shops worldwide, computed on the device from a bundled OpenStreetMap extract (`scripts/build_places.py`) and shown on a Leaflet map, plus links to iFixit, Repair Cafe International and Restarters groups.
+- **Three routes.** Fix it yourself (matching iFixit guides with difficulty and time), a free repair cafe (the odds plus the next event near you) or a paid repairer, with a suggested first step that weighs safety, guide difficulty, the odds and upcoming events.
+- **Repair events.** 950+ upcoming community repair events from all 13 Restarters.net networks (`scripts/build_events.mjs`, refreshed daily by the deploy workflow), filtered by distance, with calendar files and reminders.
+- **Filters and enquiries.** The finder filters by 10/25/50/100 km, place type and "open now" (OSM opening hours read on the device, about 94% of listed hours). For any place it drafts an enquiry by text, WhatsApp or email with a short repair-ticket link; the person sends it from their own app.
 - **Repair ticket.** A printable hand-over ticket with agreed maximum spend, quote, condition checkboxes, notes and a QR code. A share link keeps these fields in the URL fragment and old links still open. Your written description is left out of the link unless you tick a box.
 - **My repair log.** Local to the browser. Totals of estimated CO2e and e-waste for repairs you completed, and CSV export using the Open Repair Data Standard column names.
 - **The method page.** The split, scores against baselines, a table of what actually happened for each verdict, a calibration chart, formulas, sources and limitations. All numbers on it come from `src/data/report.json`.
@@ -106,11 +109,13 @@ cd ../.. && .venv/bin/python scripts/train.py
 
 - **Open Repair Alliance** repair data, [July 2026 aggregate v0.3](https://openrepair.org/open-data/downloads/), CC BY-SA 4.0. The model and statistics derived from it are shared under CC BY-SA 4.0 (see `DATA-LICENSE.md`).
 - **The Restart Project** ([restarters.net](https://github.com/TheRestartProject/restarters.net), GPL-3.0): category weights, footprints and the 0.5 displacement factor.
+- **Restarters.net** public events API (The Restart Project): upcoming event fields only (time, title, venue, group name). Organiser emails and phone numbers are not copied.
+- **iFixit** public API: guide titles, difficulty, time and thumbnails are fetched live and linked; guide content (CC BY-NC-SA 3.0) is not copied.
 - **OpenStreetMap** contributors (ODbL) bundled as `public/places.json` (extract via QLever) for the finder, with Nominatim for typed place search, shown with **Leaflet** (BSD-2-Clause). Nominatim is used lightly: one request per user action, throttled and cached.
 - Interface: **Tailwind CSS** and **@tailwindcss/vite** (MIT), **Motion** (MIT), **cmdk** (MIT), **Vaul** (MIT), **Radix UI** (MIT), **lucide-react** (ISC), **Inter / @fontsource-variable/inter** (SIL Open Font License 1.1), **qrcode-generator** (MIT), **clsx** (MIT), **tailwind-merge** (MIT), and **class-variance-authority** (Apache-2.0). The small `src/ui/` components follow the **shadcn/ui** pattern (MIT).
 - Code: GPL-3.0 (`LICENSE`).
 
-FixOdds is not endorsed by, affiliated with or reviewed by the Open Repair Alliance, The Restart Project, OpenStreetMap or Leaflet.
+FixOdds is not endorsed by, affiliated with or reviewed by the Open Repair Alliance, The Restart Project, iFixit, OpenStreetMap or Leaflet.
 
 ## Limitations
 

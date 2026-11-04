@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Daily rebuild keeps the repair events calendar current.
+  schedule:
+    - cron: '17 4 * * *'
 
 permissions:
   contents: read
@@ -25,6 +28,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Refresh repair events
+        run: node scripts/build_events.mjs || echo 'Keeping the committed events snapshot'
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

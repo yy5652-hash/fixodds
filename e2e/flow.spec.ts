@@ -9,6 +9,9 @@ async function mockMapServices(page: Page) {
     [40.7,-74,'Too Far Away',1,'','node/303','',''],
   ]}}));
   await page.route('https://tile.openstreetmap.org/**', r=>r.fulfill({body:tile,contentType:'image/png'}));
+  await page.route('https://www.ifixit.com/api/**', r=>r.fulfill({json:{results:[{dataType:'guide',guideid:7,title:'Laptop Battery Replacement',url:'https://www.ifixit.com/Guide/Laptop+Battery/7',difficulty:'Easy',time_required_max:900,username:'Tester',category:'PC Laptop',image:null}]},headers:{'access-control-allow-origin':'*'}}));
+  const soon=new Date(Date.now()+3*86400000).toISOString().slice(0,10);
+  await page.route('**/events.json', r=>r.fulfill({json:{built:'2026-11-04',events:[[1,soon+'T10:00:00+00:00',soon+'T13:00:00+00:00','Europe/London','Autumn repair cafe','Hall, Bristol',51.46,-2.59,'Test Repair Cafe',0,'United Kingdom'],[2,soon+'T10:00:00+00:00','','Europe/London','Far','NYC',40.7,-74,'Far Cafe',0,'United States']]}}));
 }
 async function noHorizontalScroll(page: Page) {
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true);
@@ -56,10 +59,16 @@ test('live odds, aliases, privacy, finder, PNG, ticket QR, log and method',async
   await page.getByRole('button',{name:'Find a repairer near me',exact:true}).click();
   await page.getByLabel('Town or place').fill('Bristol');
   await page.getByRole('button',{name:'Search places'}).click();
-  await page.getByRole('button',{name:/Bristol, England/}).click();
   await expect(page.getByText('2 mapped places near')).toBeVisible();
   await expect(page.getByRole('link',{name:'+441234567890'})).toHaveAttribute('href','tel:+441234567890');
-  await expect(page.getByText('Hours: Mo-Fr 09:00-17:00')).toBeVisible();
+  await expect(page.getByText(/(Open|Closed) now · Mo-Fr 09:00-17:00/)).toBeVisible();
+  await page.getByRole('button',{name:'Ask about this repair'}).first().click();
+  const message=await page.getByLabel(/Your message/).inputValue();
+  expect(message).toContain('#/ticket?s=');expect(message).not.toContain('private-marker');
+  await expect(page.getByRole('link',{name:'WhatsApp'})).toHaveAttribute('href',/^https:\/\/wa\.me\/441234567890\?text=/);
+  await expect(page.getByRole('link',{name:'Text message'})).toHaveAttribute('href',/^sms:\+441234567890\?&body=/);
+  await page.getByLabel('Within').first().selectOption('100');
+  await expect(page.getByText('2 mapped places near')).toBeVisible();
   await expect(page.getByRole('link',{name:/Directions/}).first()).toHaveAttribute('href','https://www.openstreetmap.org/directions?to=51.456,-2.59');
   await page.getByRole('button',{name:'What usually stops this repair'}).click();
   const guide=await page.getByRole('link',{name:/Search iFixit guides/}).first().getAttribute('href');
@@ -98,6 +107,27 @@ test('live odds, aliases, privacy, finder, PNG, ticket QR, log and method',async
   await expect(page.getByRole('table',{name:/Held-out outcomes by verdict/})).toContainText('Harder repair, check first');
   await expect(page.getByRole('img',{name:/Calibration chart/})).toBeVisible();
   expect(requests.some(r=>r.includes('private-marker-7291'))).toBe(false);
+});
+
+test('three routes, iFixit guides and nearby repair events with calendar files',async({page})=>{
+  await mockMapServices(page);
+  await page.goto('/');
+  await page.evaluate(()=>localStorage.setItem('fixodds-area-v1',JSON.stringify({lat:51.4545,lon:-2.5879,name:'Bristol, England'})));
+  await page.reload();
+  await selectItem(page,'MacBook','Laptop');
+  await page.getByRole('button',{name:'Battery or charging'}).click();
+  await expect(page.getByRole('heading',{name:'Pick the route that fits.'})).toBeVisible();
+  await expect(page.getByRole('link',{name:/Laptop Battery Replacement/})).toHaveAttribute('href','https://www.ifixit.com/Guide/Laptop+Battery/7');
+  await expect(page.locator('.route').filter({hasText:'Free repair cafe'})).toContainText('Test Repair Cafe');
+  await expect(page.locator('.route.is-best')).toHaveCount(1);
+  await page.getByRole('link',{name:'Repair events',exact:true}).click();
+  await expect(page.getByText('1 upcoming within 25 km of Bristol, England')).toBeVisible();
+  await expect(page.getByText('Far Cafe')).toHaveCount(0);
+  const download=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Add to calendar'}).click();
+  const file=readFileSync((await (await download).path())!,'utf8');
+  expect(file).toContain('BEGIN:VEVENT');expect(file).toContain('SUMMARY:Test Repair Cafe: Autumn repair cafe');expect(file).toContain('TRIGGER:-PT1440M');
+  await noHorizontalScroll(page);
 });
 
 test('smoke words and the sparks chip override the live verdict',async({page})=>{

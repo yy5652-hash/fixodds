@@ -26,3 +26,13 @@ test('full-length multilingual notes and opted-in description round trip', () =>
   expect(decodeRepairTicket(encodeRepairTicket(long, notes, true))?.ticket.notes).toBe(notes.notes);
   expect(decodeRepairTicket(encodeRepairTicket(long, notes, true))?.input.problem).toBe(long.problem);
 });
+import { shortTicket, isSharedTicket } from './ticket';
+test('short message links round-trip without the description', () => {
+  const input = { category: 'Laptop', age: '3-5', years: '5', brand: 'Dell', problem: 'secret words', size: 'Laptop medium', symptoms: ['battery', 'screen'] };
+  const hash = shortTicket(input);
+  expect(hash.length).toBeLessThan(120);
+  expect(isSharedTicket(hash)).toBe(true);
+  const back = decodeRepairTicket(hash)!;
+  expect(back.input).toMatchObject({ category: 'Laptop', age: '3-5', years: '5', brand: 'Dell', problem: '', size: 'Laptop medium', symptoms: ['battery', 'screen'] });
+  expect(decodeRepairTicket('#/ticket?s=bad')).toBeNull();
+});

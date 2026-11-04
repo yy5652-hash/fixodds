@@ -1,6 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Clock, Copy, Mail, MessageCircle, Phone, Send } from 'lucide-react';
+import { shortTicket } from './ticket';
+import { enquiryLinks, enquiryText, firstPhone } from './enquiry';
+import { distance, readArea, saveArea, type Area } from './events';
+export { distance };
+import { openAt } from './hours';
+import { label, type Input } from './core';
 export type Point = { lat: number; lon: number };
 export type Place = Point & { display_name: string };
 export type RepairPlace = Point & { name: string; kind: string; website: string; osm: string; phone: string; hours: string; distance: number };
@@ -46,14 +53,9 @@ export async function geocode(query: string): Promise<Place[]> {
   };
   return navigator.locks ? navigator.locks.request('fixodds-geocode', request) : request();
 }
-export function distance(a: Point, b: Point): number {
-  const radians = (v: number) => v * Math.PI / 180;
-  const h = Math.sin(radians(b.lat-a.lat)/2)**2 + Math.cos(radians(a.lat))*Math.cos(radians(b.lat))*Math.sin(radians(b.lon-a.lon)/2)**2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0,1-h)));
-}
-type PlaceData = { built: string; kinds: string[]; places: [number, number, string, number, string, string, string?, string?][] };
+export type PlaceData = { built: string; kinds: string[]; places: [number, number, string, number, string, string, string?, string?][] };
 let placeData: Promise<PlaceData> | undefined;
-function loadPlaces(): Promise<PlaceData> {
+export function loadPlaces(): Promise<PlaceData> {
   if (!placeData) placeData = fetch('./places.json').then(r => { if (!r.ok) throw Error('Repair places could not be loaded.'); return r.json(); }).catch(e => { placeData = undefined; throw e; });
   return placeData;
 }
@@ -67,16 +69,19 @@ export function nearest(data: PlaceData, point: Point, radius: number, limit = 4
   }
   return found.sort((a, b) => a.distance - b.distance).slice(0, limit);
 }
-export async function nearby(point: Point): Promise<RepairPlace[]> {
+export async function nearby(point: Point, radius?: number): Promise<RepairPlace[]> {
   const config = await services();
   const data = await loadPlaces();
+  if (radius) return nearest(data, point, radius, 300);
   // services.json radius is in metres. Sparse areas widen so the list is still useful.
   const close = nearest(data, point, config.radius / 1000);
   return close.length >= 3 ? close : nearest(data, point, config.radius / 250, 10);
 }
-function RepairMap({ point, places }: { point: Point; places: RepairPlace[] }) {
+export type Marker = Point & { label: string; tone?: 'event' | 'place' };
+export function MapView({ point, markers, name = 'Nearby repair locations map' }: { point: Point; markers: Marker[]; name?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
+  const key = markers.map(m => `${m.lat},${m.lon}`).join('|');
   useEffect(() => {
     let map: L.Map | undefined;
     let disposed = false;
@@ -85,53 +90,95 @@ function RepairMap({ point, places }: { point: Point; places: RepairPlace[] }) {
       map = L.map(ref.current, { scrollWheelZoom: false }).setView([point.lat,point.lon], 11);
       L.tileLayer(config.tiles, { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' }).on('tileerror', () => setError('Map tiles could not load. The list below still works.')).addTo(map);
       L.circleMarker([point.lat,point.lon], { radius: 6, color:'#1c1a16', fillColor:'#1c1a16', fillOpacity:1 }).bindPopup('Your search area').addTo(map);
-      for (const place of places) {
+      const bounds = L.latLngBounds([[point.lat, point.lon]]);
+      for (const m of markers) {
         const popup = document.createElement('span');
-        popup.textContent = place.name;
-        L.circleMarker([place.lat,place.lon], { radius:8, color:'#1c1a16', weight:2, fillColor:'#b8400c', fillOpacity:1 }).bindPopup(popup).addTo(map);
+        popup.textContent = m.label;
+        L.circleMarker([m.lat,m.lon], { radius:8, color:'#1c1a16', weight:2, fillColor:m.tone==='event'?'#1f7a4d':'#b8400c', fillOpacity:1 }).bindPopup(popup).addTo(map);
+        bounds.extend([m.lat, m.lon]);
       }
+      if (markers.length) map.fitBounds(bounds.pad(0.15), { maxZoom: 13 });
     }).catch(() => setError('Map settings could not load. Use the list below.'));
     return () => { disposed = true; map?.remove(); };
-  }, [point, places]);
-  return <><div className="map" ref={ref} role="region" aria-label="Nearby repair locations map" />{error && <p role="status">{error}</p>}</>;
+  }, [point.lat, point.lon, key]);
+  return <><div className="map" ref={ref} role="region" aria-label={name} />{error && <p role="status">{error}</p>}</>;
 }
-export default function Finder() {
+// Town search shared by the finder and the events page. The chosen area is remembered on this device only.
+export function AreaSearch({ onArea, area }: { onArea: (area: Area) => void; area?: Area }) {
   const [query,setQuery] = useState('');
   const [matches,setMatches] = useState<Place[]>([]);
-  const [point,setPoint] = useState<Point>();
-  const [places,setPlaces] = useState<RepairPlace[]>([]);
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
-  const [searched,setSearched] = useState(false);
-  const [area,setArea] = useState('');
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  async function find(p: Point, name: string) {
-    setBusy(true); setError(''); setMatches([]); setSearched(false); setPoint(undefined);
-    try { const result = await nearby(p); if (alive.current) { setPlaces(result); setPoint(p); setArea(name); setSearched(true); } }
-    catch(e) { if (alive.current) setError(e instanceof Error ? e.message : 'Search failed.'); }
-    finally { if (alive.current) setBusy(false); }
-  }
+  function choose(a: Area) { saveArea(a); setMatches([]); setQuery(''); onArea(a); }
   async function search() {
     if (!query.trim() || busy) return;
     setBusy(true); setError(''); setMatches([]);
-    try { const result = await geocode(query); if (alive.current) { setMatches(result); if (!result.length) setError('No matching place. Try a town and country, or use your location.'); } }
+    try { const result = await geocode(query); if (alive.current) { if (result.length === 1) choose({ ...result[0], name: result[0].display_name }); else setMatches(result); if (!result.length) setError('No matching place. Try a town and country, or use your location.'); } }
     catch { if (alive.current) setError('Place search is unavailable. Try your location or the directories below.'); }
     finally { if (alive.current) setBusy(false); }
   }
   function locate() {
     if (!navigator.geolocation) { setError('Location is not supported here. Enter a town instead.'); return; }
     setBusy(true); setError('');
-    navigator.geolocation.getCurrentPosition(p => { if (alive.current) void find({ lat:p.coords.latitude,lon:p.coords.longitude }, 'your location'); }, () => { if (alive.current) { setBusy(false); setError('Location was not available or permission was denied. Enter a town instead.'); } }, { timeout:10000, maximumAge:300000, enableHighAccuracy:false });
+    navigator.geolocation.getCurrentPosition(p => { if (alive.current) { setBusy(false); choose({ lat:p.coords.latitude, lon:p.coords.longitude, name:'your location' }); } }, () => { if (alive.current) { setBusy(false); setError('Location was not available or permission was denied. Enter a town instead.'); } }, { timeout:10000, maximumAge:300000, enableHighAccuracy:false });
   }
-  return <section className="finder" aria-labelledby="finder-heading">
-    <h3 id="finder-heading">A repairer near you</h3>
-    <p>Nearest of 20,000+ mapped repair cafes and repair shops, worked out on this device. A typed town goes to OpenStreetMap place search, and the map loads tiles for that area from OpenStreetMap. Your problem description is never sent.</p>
-    <form onSubmit={e => { e.preventDefault(); void search(); }} className="place-form"><label>Town or place<input value={query} onChange={e=>setQuery(e.target.value)} maxLength={120} placeholder="e.g. Bristol, UK" required /></label><button disabled={busy} type="submit">Search places</button><button disabled={busy} type="button" className="secondary" onClick={locate}>Use my location</button></form>
+  return <div className="area-search">
+    <form onSubmit={e => { e.preventDefault(); void search(); }} className="place-form"><label>Town or place<input value={query} onChange={e=>setQuery(e.target.value)} maxLength={120} placeholder={area ? `Now: ${shortName(area.name)}` : 'e.g. Bristol, UK'} required /></label><button disabled={busy} type="submit">Search places</button><button disabled={busy} type="button" className="secondary" onClick={locate}>Use my location</button></form>
     <p className="small">Town-level searches only; avoid a private address. © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>. <a href="https://operations.osmfoundation.org/policies/nominatim/">Place-search usage policy</a>.</p>
     {busy && <p role="status">Looking for repair help…</p>}
     {error && <p role="alert" className="notice">{error}</p>}
-    {matches.length>0 && <div className="place-choices"><p>Choose your area:</p>{matches.map((p,i)=><button className="secondary" key={i} disabled={busy} onClick={()=>void find(p,p.display_name)}>{p.display_name}</button>)}</div>}
-    {searched && point && <><p className="eyebrow">{places.length} mapped places near {area}</p><RepairMap point={point} places={places}/><p className="small">Map listings may be incomplete or out of date. Call ahead about your device, opening times and fees. A shop listing is not a repair recommendation.</p>{places.length === 0 ? <p className="notice">No repair locations are mapped nearby. That does not mean none exist: check Repair Cafe International or Restarters below.</p> : <ol className="repair-list">{places.map(p=><li key={p.osm}><div><strong>{p.name}</strong><span>{p.distance.toFixed(1)} km away · {p.kind}</span>{p.phone && <a href={`tel:${p.phone}`}>{p.phone}</a>}{p.hours && <span>Hours: {p.hours}</span>}<a href={`https://www.openstreetmap.org/directions?to=${p.lat},${p.lon}`} target="_blank" rel="noopener noreferrer">Directions ↗</a>{p.website && <a href={p.website} target="_blank" rel="noreferrer nofollow">Website ↗</a>}</div><a href={`https://www.openstreetmap.org/${p.osm}`} target="_blank" rel="noreferrer">View listing ↗</a></li>)}</ol>}<a className="small" href="https://www.openstreetmap.org/fixthemap">Report a map issue</a></>}
+    {matches.length>0 && <div className="place-choices"><p>Choose your area:</p>{matches.map((p,i)=><button className="secondary" key={i} disabled={busy} onClick={()=>choose({ ...p, name:p.display_name })}>{p.display_name}</button>)}</div>}
+  </div>;
+}
+export const shortName = (name: string) => name.split(',').slice(0, 2).join(',').trim();
+export const radii = [10, 25, 50, 100];
+function OpenBadge({ hours, now }: { hours: string; now: Date }) {
+  const open = hours ? openAt(hours, now) : null;
+  if (open === null) return hours ? <span className="hours">Hours: {hours}</span> : <span className="hours muted">Hours not listed</span>;
+  return <span className={`hours ${open ? 'is-open' : 'is-closed'}`}><Clock size={13}/>{open ? 'Open now' : 'Closed now'} · {hours}</span>;
+}
+function Enquiry({ input, place }: { input: Input; place: RepairPlace }) {
+  const ticket = window.location.href.split('#')[0] + shortTicket(input);
+  const [text,setText] = useState(() => enquiryText(input, ticket, place.name));
+  const [copied,setCopied] = useState('');
+  const links = enquiryLinks(text, place.phone, `Repair enquiry: ${label(input.category)}`);
+  async function copy() { try { await navigator.clipboard.writeText(text); setCopied('Message copied.'); } catch { setCopied('Select the message and copy it.'); } }
+  return <div className="enquiry"><label>Your message <span className="optional">edit before sending</span><textarea rows={6} maxLength={2000} value={text} onChange={e=>setText(e.target.value)}/></label><div className="actions">{links.sms&&<a className="button" href={links.sms}><Send size={15}/>Text message</a>}{links.whatsapp&&<a className="button" href={links.whatsapp} target="_blank" rel="noopener noreferrer"><MessageCircle size={15}/>WhatsApp</a>}<a className="button" href={links.email}><Mail size={15}/>Email</a><button type="button" className="secondary" onClick={()=>void copy()}><Copy size={15}/>Copy</button>{place.website&&<a className="button ghost" href={place.website} target="_blank" rel="noreferrer nofollow">Contact page ↗</a>}</div>{copied&&<p role="status" className="small">{copied}</p>}<p className="small">Sent from your own phone or mail app. FixOdds does not see or store it. The link opens your repair ticket without your description.</p></div>;
+}
+export default function Finder({ input }: { input?: Input }) {
+  const [area,setArea] = useState<Area | undefined>(() => readArea());
+  const [radius,setRadius] = useState(25);
+  const [places,setPlaces] = useState<RepairPlace[]>([]);
+  const [kinds,setKinds] = useState<string[]>([]);
+  const [hidden,setHidden] = useState<string[]>([]);
+  const [openNow,setOpenNow] = useState(false);
+  const [busy,setBusy] = useState(false);
+  const [error,setError] = useState('');
+  const [asking,setAsking] = useState('');
+  const now = useMemo(() => new Date(), [places]);
+  useEffect(() => {
+    if (!area) return;
+    let live = true;
+    setBusy(true); setError('');
+    Promise.all([nearby(area, radius), loadPlaces()]).then(([found, data]) => { if (live) { setPlaces(found); setKinds(data.kinds); } }).catch(e => { if (live) setError(e instanceof Error ? e.message : 'Search failed.'); }).finally(() => { if (live) setBusy(false); });
+    return () => { live = false; };
+  }, [area?.lat, area?.lon, radius]);
+  const shown = places.filter(p => !hidden.includes(p.kind) && (!openNow || openAt(p.hours, now) === true)).slice(0, 40);
+  const listedHours = places.filter(p => openAt(p.hours, now) !== null).length;
+  return <section className="finder" aria-labelledby="finder-heading">
+    <h3 id="finder-heading">A repairer near you</h3>
+    <p>Nearest of 20,000+ mapped repair cafes and repair shops, worked out on this device. A typed town goes to OpenStreetMap place search, and the map loads tiles for that area from OpenStreetMap. Your problem description is never sent.</p>
+    <AreaSearch area={area} onArea={setArea}/>
+    {busy && <p role="status">Looking for repair help…</p>}
+    {error && <p role="alert" className="notice">{error}</p>}
+    {area && !busy && !error && <>
+      <div className="filter-bar" role="group" aria-label="Filter repair places"><label>Within<select value={radius} onChange={e=>setRadius(Number(e.target.value))}>{radii.map(r=><option key={r} value={r}>{r} km</option>)}</select></label><div className="chip-row">{kinds.map(k=>{const on=!hidden.includes(k);return <button type="button" key={k} className={`chip${on?' is-on':''}`} aria-pressed={on} onClick={()=>setHidden(on?[...hidden,k]:hidden.filter(x=>x!==k))}>{k}</button>;})}<button type="button" className={`chip${openNow?' is-on':''}`} aria-pressed={openNow} onClick={()=>setOpenNow(!openNow)} disabled={!listedHours}><Clock size={13}/>Open now</button></div></div>
+      <p className="eyebrow">{shown.length} mapped places near {shortName(area.name)}{shown.length<places.filter(p=>!hidden.includes(p.kind)).length?` · ${places.length} within ${radius} km`:''}</p>
+      <MapView point={area} markers={shown.map(p=>({ lat:p.lat, lon:p.lon, label:p.name }))}/>
+      <p className="small">Map listings may be incomplete or out of date. Call ahead about your device, opening times and fees. A shop listing is not a repair recommendation. Opening times use this device’s clock.</p>
+      {shown.length === 0 ? <p className="notice">{places.length ? 'No places match these filters. Widen the distance or clear a filter.' : <>No repair locations are mapped within {radius} km. That does not mean none exist: try a wider distance, <a href="#/events">community repair events</a> or the directories below.</>}</p> : <ol className="repair-list">{shown.map(p=><li key={p.osm}><div><strong>{p.name}</strong><span>{p.distance.toFixed(1)} km away · {p.kind}</span><OpenBadge hours={p.hours} now={now}/>{p.phone && <a href={`tel:${firstPhone(p.phone)}`}><Phone size={13}/>{p.phone}</a>}<a href={`https://www.openstreetmap.org/directions?to=${p.lat},${p.lon}`} target="_blank" rel="noopener noreferrer">Directions ↗</a>{p.website && <a href={p.website} target="_blank" rel="noreferrer nofollow">Website ↗</a>}{input?.category && <button type="button" className="secondary ask" aria-expanded={asking===p.osm} onClick={()=>setAsking(asking===p.osm?'':p.osm)}><Send size={14}/>{asking===p.osm?'Close message':'Ask about this repair'}</button>}{input?.category && asking===p.osm && <Enquiry input={input} place={p}/>}</div><a href={`https://www.openstreetmap.org/${p.osm}`} target="_blank" rel="noreferrer">View listing ↗</a></li>)}</ol>}
+      <a className="small" href="https://www.openstreetmap.org/fixthemap">Report a map issue</a></>}
   </section>;
 }

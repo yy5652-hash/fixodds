@@ -42,12 +42,12 @@ for k, v in L.items():
     x = load(HERE / f'audio_v2/{k}.wav', 1)[:, 0] * 1.25; a = int(v['t'] * SR); voice[a:a + len(x)] += x
 # Duck: fast down just before a line, slower back up after it.
 act = (np.abs(voice) > 1e-3).astype(np.float64); hop = int(.02 * SR); blocks = act[:len(act) // hop * hop].reshape(-1, hop).max(1)
-hold = int(.35 / .02)
+hold = int(.6 / .02)  # short pauses between lines stay ducked
 held = np.array([blocks[max(0, i - hold):i + 8].max() for i in range(len(blocks))])
-depth = np.where(np.arange(len(held)) * .02 < t5, .42, .2); depth = np.where((np.arange(len(held)) * .02 >= t8) & (np.arange(len(held)) * .02 < T.get('s08_end', t8)), .25, depth)
+depth = np.where(np.arange(len(held)) * .02 < t5, .2, .09); depth = np.where((np.arange(len(held)) * .02 >= t8) & (np.arange(len(held)) * .02 < T.get('s08_end', t8)), .11, depth)
 g = np.ones(len(held)); cur = 1.0
 for i, (h, d) in enumerate(zip(held, depth)):
-    target = d if h else 1.0; cur += (target - cur) * (.35 if target < cur else .07); g[i] = cur
+    target = d if h else 1.0; cur += (target - cur) * (.35 if target < cur else .04); g[i] = cur
 gain = np.interp(np.arange(N), np.arange(len(g)) * hop + hop / 2, g)
 duck = music * gain[:, None] * .8
 mix = duck + voice[:, None]
