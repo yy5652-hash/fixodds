@@ -130,6 +130,24 @@ test('three routes, iFixit guides and nearby repair events with calendar files',
   await noHorizontalScroll(page);
 });
 
+test('item repair records, brand comparison and a check started from an item page',async({page})=>{
+  await mockMapServices(page);
+  await page.goto('/#/items');
+  await page.getByRole('link',{name:/^Vacuum/}).click();
+  await expect(page.getByRole('heading',{name:'Vacuum',level:1})).toBeVisible();
+  await expect(page.getByRole('table',{name:'Outcomes by brand'}).getByText('Dyson')).toBeVisible();
+  await expect(page.getByText('Spare parts are the usual blocker.')).toBeVisible();
+  await page.getByRole('link',{name:'Check my vacuum'}).click();
+  await expect(page.locator('.result-card').first()).toContainText('Vacuum');
+  await page.getByRole('button',{name:'Sharpen the odds'}).click();
+  await page.getByLabel('Brand').fill('Dyson');
+  await expect(page.locator('.brand-line')).toContainText('Dyson vacuums: fixed in');
+  await page.getByRole('button',{name:'Battery or charging'}).click();
+  await expect(page.getByRole('heading',{name:'Real repairs like yours'})).toBeVisible();
+  await expect(page.locator('.case-list li').first()).toBeVisible();
+  await noHorizontalScroll(page);
+});
+
 test('smoke words and the sparks chip override the live verdict',async({page})=>{
   await page.goto('/');await selectItem(page,'Kettle','Kettle');
   await page.getByLabel(/Or describe it/).fill('smoke and burning');
