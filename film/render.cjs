@@ -12,43 +12,8 @@ const FPS = arg('fps', 30), PORTRAIT = mode === 'portrait';
 const [W, H] = PORTRAIT ? [1080, 1920] : [1920, 1080];
 const [AW, AH] = PORTRAIT ? [480, 690] : [1440, 810];
 
-const narration = Object.fromEntries(JSON.parse(fs.readFileSync(__dirname + '/narration_v4.json')).map(l => [l.id, l]));
-function wavDur(id) {
-  const b = fs.readFileSync(`${__dirname}/audio_v2/${id}.wav`);
-  const data = b.indexOf('data'); return b.readUInt32LE(data + 4) / (b.readUInt32LE(24) * b.readUInt16LE(34) / 8 * b.readUInt16LE(22));
-}
-// Scene plan: narration lines, silence before and after. Short version reuses the same takes.
-const scenes = PORTRAIT ? [
-  ['s01', ['s01'], .25, .5], ['s03', ['s03a', 's03b'], .1, .5], ['s05', ['s05'], .2, .6],
-  ['s06', ['s06b', 's06c'], .1, .5], ['s08', ['s08a'], .1, .6],
-  ['n09', ['n09a'], .2, .5], ['n10', ['n10'], .3, .6], ['s12', ['s12'], .3, 1.6],
-] : [
-  ['s01', ['s01'], .25, .6], ['s02', ['s02'], .1, .5], ['s03', ['s03a', 's03b'], .1, .6],
-  ['s04', ['s04a', 's04b'], .9, .3], ['s05', ['s05'], .15, 1.0], ['s06', ['s06a', 's06b', 's06c'], .1, .7],
-  ['s07', ['s07a', 's07b', 's07c'], .3, .6], ['s08', ['s08a', 's08b', 's08c'], .2, .8],
-  ['n09', ['n09a', 'n09b'], .3, .6], ['n10', ['n10'], .3, .6], ['n11', ['n11'], .3, .6], ['n12', ['n12'], .3, .5], ['n13', ['n13'], .3, .5], ['s12', ['s12'], .3, 2.4],
-];
-const T = {}, lines = {}, caps = [];
-let cursor = 0;
-for (const [id, ls, lead, tail] of scenes) {
-  T[id] = cursor; cursor += lead;
-  for (const l of ls) {
-    const d = wavDur(l); lines[l] = { t: cursor, d };
-    const text = narration[l].cap, max = PORTRAIT ? 56 : 62, chunks = []; let row = '';
-    for (const w of text.split(' ')) {
-      if ((row + ' ' + w).trim().length > max) {
-        const m = [...row.matchAll(/[,:.] /g)].pop();
-        if (m && m.index > max * .35) { chunks.push(row.slice(0, m.index + 1)); row = row.slice(m.index + 2) + ' ' + w; } else { chunks.push(row); row = w; }
-      } else row = (row + ' ' + w).trim();
-    }
-    chunks.push(row);
-    const total = chunks.reduce((a, c) => a + c.length, 0); let c0 = cursor + .05, span = d - .1;
-    for (const c of chunks) { const cd = span * c.length / total; caps.push({ t0: c0, t1: c0 + cd - .02, text: c }); c0 += cd; }
-    cursor += d + .28;
-  }
-  cursor += tail - .28; T[id + '_end'] = cursor;
-}
-const END = cursor;
+const { makePlan } = require('./plan.cjs');
+const { T, lines, caps, END } = makePlan(mode);
 fs.writeFileSync(`${__dirname}/work/timeline_${mode}.json`, JSON.stringify({ scenes: T, lines, end: END }, null, 1));
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/json' };
@@ -132,7 +97,36 @@ const server = http.createServer((q, s) => {
   sceneCard({ t0: T.s08 + .05, t1: s8split, html: `<div class="huge">${count(150000, 202076, 1.9)}</div><div class="label">recorded fixes</div>` });
   sceneCard({ t0: s8split, t1: T.s08_end - .05, html: `<div class="${PORTRAIT ? '' : 'row'}"><div><div class="big fix">≈5,400 t</div><div class="label">CO₂e</div></div><div ${PORTRAIT ? 'style="margin-top:6vmin"' : ''} data-in="0.7"><div class="big">≈700 t</div><div class="label">e-waste kept in use</div></div></div><div class="small">Same factors, fixes in categories with a factor. What repair already does, not FixOdds' own impact.</div>` });
   // End card
-  sceneCard({ t0: T.s12 + .1, t1: 1e9, fade: .5, drift: 0, html: `<div id="brand">FixOdds<span class="acc">.</span></div><div class="mid" style="margin-top:1vmin">Give repair a fair chance.</div><div class="label acc" style="margin-top:4.5vmin">yy5652-hash.github.io/fixodds</div><div class="small" style="margin-top:6vmin">${PORTRAIT ? 'Data: Open Repair Alliance · The Restart Project<br>OpenStreetMap contributors · Guides linked from iFixit<br>Music: Dvořák, Symphony No. 9, Musopen' : 'Data: Open Repair Alliance · The Restart Project · Restarters.net · OpenStreetMap contributors<br>Guides linked from iFixit · Music: Dvořák, Symphony No. 9, Musopen'}</div>` });
+  sceneCard({ t0: T.s12 - .1, t1: 1e9, fade: .5, drift: 0, html: `<div id="brand">FixOdds<span class="acc">.</span></div><div class="mid" style="margin-top:1vmin">Give repair a fair chance.</div><div class="label acc" style="margin-top:4.5vmin">yy5652-hash.github.io/fixodds</div><div class="small" style="margin-top:6vmin">${PORTRAIT ? 'Data: Open Repair Alliance · The Restart Project<br>OpenStreetMap contributors · Guides linked from iFixit<br>Music: Dvořák, Symphony No. 9, Musopen' : 'Data: Open Repair Alliance · The Restart Project · Restarters.net · OpenStreetMap contributors<br>Guides linked from iFixit · Music: Dvořák, Symphony No. 9, Musopen'}</div>` });
+
+  // New title cards cover navigation; the incoming window floats out of its tilt.
+  const titles = {
+    n09: '<div class="huge">3 ways<br>to fix it.</div>',
+    n10: '<div class="huge">954</div><div class="label">repair events · 13 networks</div>',
+    n11: '<div class="big">Message a repairer.</div><div class="label">Text · WhatsApp · Email</div>',
+    n12: '<div class="huge">5.9<small style="font-size:.48em">/10</small></div><div class="label">vacuums · 34,059 repair attempts</div>',
+    n13: '<div class="big">5 languages.</div><div class="label">English · Nederlands · Deutsch · Français · 中文</div>',
+  };
+  for (const [id, html] of Object.entries(titles)) if (T[id + '_card'] !== undefined)
+    sceneCard({ t0: T[id + '_card'], t1: T[id + '_card'] + 1.1, fadeIn: .15, fadeOut: .25,
+      rise: 0, drift: 0, style: 'background:#12100d', html });
+  // Centre the subject at 43% height, keeping the subtitle band clear.
+  const subject = (r, s) => ({ ...fill(r.x + r.w / 2, r.y + r.h / 2, s),
+    y: r.y + r.h / 2 + H * ((PORTRAIT ? .44 : .5) - .43) / s });
+  const floatIn = async (id, target) => {
+    const end = T[id + '_card'] + 1.1;
+    // The page stays hidden under the title card, then fades in tilted and settles (one tween, held until it starts).
+    await st('camSet', { ...target, s: target.s * .9, rx: 6, ry: -8, op: 0 });
+    await st('camTo', end - .1, end + .9, { ...target, op: 1, rx: 0, ry: 0 });
+  };
+  const highlight = async (r, t0, t1) => {
+    await st('spot', { t0, t1, x: r.x + r.w / 2, y: r.y + r.h / 2, rx: r.w / 2 + 24, ry: r.h / 2 + 20 });
+    await st('ring', { t0, t1, x: r.x - 6, y: r.y - 5, w: r.w + 12, h: r.h + 10 });
+  };
+
+  // Apply the lower caption band only to the new scenes; preserve the old/end-card look.
+  at(T.n09_card, () => page.evaluate(() => { document.getElementById('caption').style.bottom = '3vh'; }));
+  at(T.s12 - .1, () => page.evaluate(() => { document.getElementById('caption').style.bottom = ''; }));
 
   const BRISTOL = { lat: 51.454, lon: -2.597, name: 'Bristol, City of Bristol, England, United Kingdom' };
   const seedArea = () => frame.evaluate(a => { localStorage.setItem('fixodds-area-v1', JSON.stringify(a)); window.dispatchEvent(new Event('fixodds-area')); }, BRISTOL);
@@ -181,33 +175,35 @@ const server = http.createServer((q, s) => {
       await st('camTo', s7c + 1, T.s07_end, fill(r.x + r.w / 2, r.y + 90, 1.68));
     });
     hideWin(T.s07_end - .3);
-    // N09 three routes; the suggested one is ringed.
-    const n9 = T.n09, routeView = r => fill(r.x + r.w / 2, r.y + Math.min(r.h, 640) / 2, 1);
-    at(n9 - .15, async () => {
+    // N09: one route at a time, then the suggested first step.
+    const n9 = tl('n09a');
+    at(T.n09_card + .15, async () => {
       await st('curHide');
       await frame.evaluate(() => { const r = document.querySelector('.routes'); window.scrollTo({ top: r.getBoundingClientRect().top + scrollY - 40, behavior: 'instant' }); });
       await page.clock.runFor(300);
-      const r = await rect('.routes'); const v = routeView(r);
-      await st('camSet', { op: 0, rx: 3, ry: -5, ...fill(v.x, v.y, 1.3) });
-      await st('camTo', n9, n9 + 1.1, { op: 1, rx: 0, ry: 0, ...fill(v.x, v.y, 1.42) });
+      await floatIn('n09', subject(await rect('.route-grid .route:nth-child(1)'), 1.8));
     });
-    at(n9 + 1.15, async () => { const r = await rect('.routes'); await st('camTo', n9 + 1.15, te('n09a'), fill(r.x + r.w / 2, r.y + Math.min(r.h, 640) / 2, 1.55)); });
-    sceneCard({ t0: tl('n09a') + 1.2, t1: te('n09a') - .1, cls: 'stamp', rise: 12, html: `<div class="stampbox" style="margin:7vh 6vw 0 0"><div class="n" style="color:#f4f1e9">3</div><div class="t">ways to get it fixed</div></div>` });
-    at(tl('n09b') - .15, async () => { const r = await rect('.route.is-best'); await st('ring', { t0: tl('n09b') - .15, t1: T.n09_end - .1, x: r.x - 8, y: r.y - 6, w: r.w + 16, h: r.h + 12 }); await st('camTo', tl('n09b') - .15, T.n09_end, fill(r.x + r.w / 2, r.y + r.h / 2, 1.75)); });
-    hideWin(T.n09_end - .25, .25);
+    for (const [fraction, index] of [[.52, 2], [.78, 3]]) {
+      const t = n9 + lines.n09a.d * fraction;
+      at(t, async () => st('camTo', t, t + .7, subject(await rect(`.route-grid .route:nth-child(${index})`), 1.8)));
+    }
+    at(tl('n09b'), async () => {
+      const r = await rect('.route.is-best');
+      await st('camTo', tl('n09b'), tl('n09b') + .7, subject(r, 2));
+      await highlight(r, tl('n09b'), T.n09_end);
+    });
     // N10 repair events in Bristol: search, map, one-tap calendar reminder.
-    const n10 = T.n10;
-    at(n10 - .1, async () => {
+    const n10 = tl('n10');
+    at(T.n10_card + .15, async () => {
       await frame.evaluate(() => { location.hash = '/events'; });
       await waitSel('.events-page .place-form input');
       await frame.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-      const r = await rect('.events-page .card');
-      await st('camSet', { op: 0, rx: 2, ry: 3, ...fill(r.x + r.w / 2, r.y + r.h / 2 - 30, 1.62) });
-      await st('camTo', n10, n10 + .7, { op: 1, rx: 0, ry: 0, ...fill(r.x + r.w / 2, r.y + r.h / 2 - 30, 1.72) });
+      const r = await rect('.events-page .place-form input');
+      await floatIn('n10', subject(r, 1.9));
       await st('curTo', n10, n10, r.x + 260, r.y + r.h + 90);
     });
-    pointClick(n10 + .2, .4, () => rect('.events-page .place-form input'), () => clickSel('.events-page .place-form input'));
-    const typedE = typeText(n10 + .65, 'Bristol, UK', .045);
+    pointClick(n10 + .95, .4, () => rect('.events-page .place-form input'), () => clickSel('.events-page .place-form input'));
+    const typedE = typeText(n10 + 1.4, 'Bristol, UK', .045);
     pointClick(typedE + .05, .3, () => rect('.events-page .place-form button[type=submit]'), () => clickSel('.events-page .place-form button[type=submit]'));
     at(typedE + .4, async () => {
       await pump(() => !!document.querySelector('.place-choices button') || (!!document.querySelector('.event-list li') && !document.querySelector('.place-form button[disabled]')), 'events');
@@ -216,29 +212,28 @@ const server = http.createServer((q, s) => {
       await waitTiles(); await page.clock.runFor(300);
       const o = await frame.evaluate(() => { const m = document.querySelector('.events-page .map').getBoundingClientRect(); const to = Math.min(m.top + scrollY - 70, document.documentElement.scrollHeight - innerHeight); return { from: scrollY, to, x: m.x + m.width / 2, vy: m.top + scrollY - to, h: m.height }; });
       scroll = { t0: typedE + .4, t1: typedE + 1.4, from: o.from, to: o.to };
-      await st('camTo', typedE + .4, typedE + 1.4, fill(o.x, o.vy + o.h / 2 + 80, 1.42));
+      await st('camTo', typedE + .4, typedE + 1.4, subject({ x: o.x, y: o.vy, w: 0, h: o.h }, 1.6));
     });
     const cal = tl('n10') + lines.n10.d * .62;
-    at(cal - .7, async () => { const r = await rect('.event-list li'); await st('camTo', cal - .7, cal + .3, fill(r.x + r.w / 2, r.y + r.h / 2 - 120, 1.55)); await st('curTo', cal - .7, cal - .7, r.x + r.w - 300, r.y + 140); });
+    at(cal - .7, async () => { const r = await rect('.event-list li'); await st('camTo', cal - .7, cal + .3, subject(r, 1.9)); await st('curTo', cal - .7, cal - .7, r.x + r.w - 300, r.y + 140); });
     pointClick(cal - .45, .4, () => rect('.event-list li button.secondary'), () => clickSel('.event-list li button.secondary'));
-    at(cal, async () => { const r = await rect('.event-list li button.secondary'); await st('ring', { t0: cal, t1: T.n10_end - .2, x: r.x - 6, y: r.y - 5, w: r.w + 12, h: r.h + 10 }); });
-    sceneCard({ t0: tl('n10') + .1, t1: T.n10_end - .15, cls: 'stamp', rise: 12, html: `<div class="stampbox" style="margin:7vh 6vw 0 0"><div class="n" style="color:#f4f1e9">954</div><div class="t">upcoming repair events<br>reminder the day before</div></div>` });
-    hideWin(T.n10_end - .25, .25);
+    at(cal - .05, async () => { const r = await rect('.event-list li button.secondary'); await highlight(r, cal - .05, T.n10_end - .2); });
     // N11 finder: open-now filter, then a ready-to-send enquiry.
-    const n11 = T.n11;
-    at(n11 - .1, async () => {
+    const n11 = tl('n11');
+    at(T.n11_card + .15, async () => {
       await st('curHide');
       await frame.evaluate(() => { location.hash = '/'; });
       await waitSel('.routes button.route-link');
       await frame.evaluate(() => document.querySelector('.routes button.route-link').click());
       await waitSel('.finder .repair-list'); await page.clock.runFor(900);
       await frame.evaluate(() => { const f = document.querySelector('.finder .filter-bar'); window.scrollTo({ top: f.getBoundingClientRect().top + scrollY - 150, behavior: 'instant' }); });
-      const r = await rect('.finder .filter-bar');
-      await st('camSet', { op: 0, ...fill(r.x + r.w / 2, r.y + 230, 1.42) }); await st('camTo', n11, n11 + .6, { op: 1, ...fill(r.x + r.w / 2, r.y + 230, 1.52) });
-      await st('curTo', n11, n11, r.x + r.w / 2, r.y + 260);
+      const r = await textRect('.finder button.chip', 'Open now');
+      await floatIn('n11', subject(r, 2));
+      await st('curTo', n11, n11, r.x + r.w / 2, r.y + 100);
     });
-    pointClick(n11 + .35, .45, () => textRect('.finder button.chip', 'Open now'), () => clickText('.finder button.chip', 'Open now'));
-    const ask = n11 + 1.5;
+    pointClick(n11 + .95, .35, () => textRect('.finder button.chip', 'Open now'), () => clickText('.finder button.chip', 'Open now'));
+    at(n11 + 1.3, async () => highlight(await textRect('.finder button.chip', 'Open now'), n11 + 1.3, n11 + 2));
+    const ask = n11 + 2.1;
     at(ask - .1, async () => {
       const o = await frame.evaluate(() => { const all = [...document.querySelectorAll('.finder .repair-list > li')].filter(l => l.querySelector('.ask')); const li = all.find(l => [...l.querySelectorAll('a[href^="tel:"]')].some(a => /^tel:(\+|00)/.test(a.getAttribute('href')))) || all[0]; li.setAttribute('data-film', '1'); const b = li.getBoundingClientRect(); const to = Math.min(b.top + scrollY - 110, document.documentElement.scrollHeight - innerHeight); return { from: scrollY, to, x: b.x + b.width / 2, vy: b.top + scrollY - to }; });
       scroll = { t0: ask - .1, t1: ask + .6, from: o.from, to: o.to };
@@ -254,35 +249,37 @@ const server = http.createServer((q, s) => {
       const o = await frame.evaluate(() => { const e = document.querySelector('li[data-film] .enquiry').getBoundingClientRect(); const to = Math.min(e.top + scrollY - 140, document.documentElement.scrollHeight - innerHeight); return { from: scrollY, to, d: scrollY - to }; });
       scroll = { t0: ask + 1.15, t1: ask + 1.85, from: o.from, to: o.to };
       const r = await rect('li[data-film] .enquiry');
-      await st('camTo', ask + 1.15, ask + 1.85, fill(r.x + r.w / 2, r.y + o.d + r.h / 2, 1.6));
+      await st('camTo', ask + 1.15, ask + 1.85, subject({ ...r, y: r.y + o.d }, 1.7));
       const b = await frame.evaluate(d => { const e = document.querySelector('li[data-film] .enquiry'); const a = e.querySelector('a[href^="https://wa.me"]') || e.querySelector('a[href^="sms:"]') || e.querySelector('a.button'); const r = a.getBoundingClientRect(); return { x: r.x, y: r.y + d, w: r.width, h: r.height }; }, o.d);
       await st('ring', { t0: ask + 1.9, t1: T.n11_end - .2, x: b.x - 6, y: b.y - 5, w: b.w + 12, h: b.h + 10 });
       
     });
-    hideWin(T.n11_end - .3);
     // N12 item record: vacuum score, then the brand table.
-    const n12 = T.n12;
-    at(n12 - .1, async () => {
+    const n12 = tl('n12');
+    at(T.n12_card + .15, async () => {
       await st('curHide');
       await frame.evaluate(() => { location.hash = '/item/vacuum'; });
       await waitSel('.item-hero .item-score'); await page.clock.runFor(300);
       await frame.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-      const r = await rect('.item-hero');
-      await st('camSet', { op: 0, rx: 2, ry: -3, ...fill(r.x + r.w / 2, r.y + r.h / 2, 1.5) });
-      await st('camTo', n12, n12 + 1.0, { op: 1, rx: 0, ry: 0, ...fill(r.x + r.w / 2, r.y + r.h / 2, 1.65) });
+      await floatIn('n12', subject(await rect('.item-hero .item-score'), 2));
     });
     const br = tl('n12') + lines.n12.d * .5;
     at(br, async () => {
-      const o = await frame.evaluate(() => { const h = [...document.querySelectorAll('h2')].find(x => x.textContent.includes('By brand')); const c = h.closest('.card').getBoundingClientRect(); const to = Math.min(c.top + scrollY - 60, document.documentElement.scrollHeight - innerHeight); return { from: scrollY, to, x: c.x + c.width / 2, vy: c.top + scrollY - to }; });
+      const o = await frame.evaluate(() => {
+        const h = [...document.querySelectorAll('h2')].find(x => x.textContent.includes('By brand'));
+        const card = h.closest('.card'), c = card.getBoundingClientRect();
+        const rows = [...card.querySelectorAll('[role="row"]')].slice(0, 8);
+        const bottom = rows.at(-1).getBoundingClientRect().bottom;
+        const to = Math.min(c.top + scrollY - 40, document.documentElement.scrollHeight - innerHeight);
+        return { from: scrollY, to, r: { x: c.x, y: c.top + scrollY - to, w: c.width, h: bottom - c.top } };
+      });
       scroll = { t0: br, t1: br + 1.1, from: o.from, to: o.to };
-      await st('camTo', br, br + 1.1, fill(o.x, o.vy + 250, 1.45));
+      await st('camTo', br, br + 1.1, subject(o.r, 1.7));
     });
-    sceneCard({ t0: br + .5, t1: T.n12_end - .1, cls: 'stamp', rise: 12, html: `<div class="stampbox" style="margin:7vh 6vw 0 0"><div class="n" style="color:#f4f1e9">578</div><div class="t">brand records, 95% intervals</div></div>` });
-    hideWin(T.n12_end - .25, .25);
     // N13 quick cuts: tracker, then the same result in Chinese and German.
-    const n13 = T.n13, cut = (T.n13_end - n13) / 3;
+    const n13 = tl('n13'), cut = (T.n13_end - n13) / 3;
     const moveBtn = () => textRect('.job button', 'Move to:');
-    at(n13 - .1, async () => {
+    at(T.n13_card + .15, async () => {
       await frame.evaluate(() => { location.hash = '/log'; });
       await waitSel('.log-totals');
       await frame.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.startsWith('Track my')).click());
@@ -290,22 +287,26 @@ const server = http.createServer((q, s) => {
       await frame.evaluate(() => [...document.querySelectorAll('.job button')].find(x => x.textContent.startsWith('Move to:')).click());
       await page.clock.runFor(100);
       await frame.evaluate(() => { const j = document.querySelector('.job'); window.scrollTo({ top: j.getBoundingClientRect().top + scrollY - 150, behavior: 'instant' }); });
-      const r = await rect('.job');
-      await st('camSet', { op: 1, rx: 0, ry: 0, ...fill(r.x + r.w / 2, r.y + 110, 1.62) });
+      const r = await rect('.job .stepper');
+      await floatIn('n13', subject(r, 1.9));
       const b = await moveBtn(); await st('curTo', n13, n13, b.x + b.w / 2 + 40, b.y + 90);
     });
-    pointClick(n13 + .1, .35, moveBtn, () => frame.evaluate(() => [...document.querySelectorAll('.job button')].find(x => x.textContent.startsWith('Move to:')).click()));
+    pointClick(n13 + .25, .35, moveBtn, () => frame.evaluate(() => [...document.querySelectorAll('.job button')].find(x => x.textContent.startsWith('Move to:')).click()));
     const lang = (t, code) => at(t, async () => {
       await st('curHide');
       await frame.selectOption('select[aria-label="Language"]', code);
       await frame.evaluate(() => { location.hash = '/'; }); await waitSel('.result-card'); await page.clock.runFor(200);
       await frame.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-      const r = await rect('.check-layout');
-      await st('camSet', { op: 1, ...fill(r.x + r.w / 2, r.y + 300, 1.36) }); await st('camTo', t, t + cut, fill(r.x + r.w / 2, r.y + 300, 1.42));
+      const r = await frame.evaluate(() => {
+        const v = document.querySelector('.result-card .verdict').getBoundingClientRect();
+        const b = document.querySelector('.result-card .stack').getBoundingClientRect();
+        return { x: v.x, y: v.y, w: v.width, h: b.bottom - v.top };
+      });
+      // Anchor the verdict's top at 28% in both languages for a true match cut.
+      await st('camSet', { op: 1, rx: 0, ry: 0, s: 1.8,
+        x: r.x + r.w / 2, y: r.y + H * (.5 - .28) / 1.8 });
     });
     lang(n13 + cut, 'zh'); lang(n13 + 2 * cut, 'de');
-    sceneCard({ t0: n13 + cut, t1: T.n13_end - .1, cls: 'stamp', rise: 0, html: `<div class="stampbox" style="margin:7vh 6vw 0 0"><div class="n" style="color:#f4f1e9">5</div><div class="t">languages</div></div>` });
-    hideWin(T.n13_end - .3);
   } else {
     // Short version: the real phone layout, scaled up.
     at(0, async () => { await st('camSet', { x: AW / 2, y: AH / 2, s: 2, rx: 0, ry: 0, op: 0 }); });
@@ -329,13 +330,12 @@ const server = http.createServer((q, s) => {
       await frame.evaluate(() => { document.activeElement?.blur?.(); document.head.insertAdjacentHTML('beforeend', '<style>.mobile-result:focus,.mobile-result:focus-visible{outline:none;box-shadow:none}</style>'); const r = document.querySelector('.routes'); window.scrollTo({ top: r.getBoundingClientRect().top + scrollY - 12, behavior: 'instant' }); });
       await page.clock.runFor(300);
     });
-    const e = T.n09;
-    at(e - .05, async () => { await st('camSet', { op: 0, s: 2.0, x: AW / 2, y: AH / 2 }); await st('camTo', e, e + .6, { op: 1, s: 2.1 }); });
-    at(e + .3, async () => { const r = await rect('.route.is-best'); if (r.y > 0 && r.y + r.h < AH - 60) await st('ring', { t0: e + .3, t1: tl('n09a') + lines.n09a.d * .4, x: r.x - 5, y: r.y - 5, w: r.w + 10, h: r.h + 10 }); });
+    const e = tl('n09a');
+    at(T.n09_card + .15, () => floatIn('n09', { s: 2.1, x: AW / 2, y: AH / 2 }));
+    at(e + .95, async () => { const r = await rect('.route.is-best'); await highlight(r, e + .95, tl('n09a') + lines.n09a.d * .4); });
     at(tl('n09a') + lines.n09a.d * .42, async () => { const o = await frame.evaluate(() => { const r = document.querySelector('.routes').getBoundingClientRect(); return { from: scrollY, to: Math.min(r.bottom + scrollY - innerHeight + 70, document.documentElement.scrollHeight - innerHeight) }; }); scroll = { t0: tl('n09a') + lines.n09a.d * .42, t1: te('n09a') - .3, from: o.from, to: o.to }; });
-    hideWin(T.n09_end - .25, .25);
-    const g = T.n10;
-    at(T.n09_end, async () => {
+    const g = tl('n10');
+    at(T.n10_card + .15, async () => {
       await frame.evaluate(() => { location.hash = '/events'; });
       await waitSel('.events-page .place-form input');
       await frame.evaluate(() => document.querySelector('.events-page .place-form input').focus());
@@ -345,14 +345,13 @@ const server = http.createServer((q, s) => {
       if (await frame.evaluate(() => !!document.querySelector('.place-choices button'))) { await frame.evaluate(() => document.querySelector('.place-choices button').click()); await waitSel('.event-list li'); }
       await frame.evaluate(() => { document.activeElement?.blur?.(); const m = document.querySelector('.events-page .map'); window.scrollTo({ top: m.getBoundingClientRect().top + scrollY - 10, behavior: 'instant' }); });
       await waitTiles(); await page.clock.runFor(400);
-      await st('camSet', { op: 0, s: 2.0, x: AW / 2, y: AH / 2 }); await st('camTo', g, g + .6, { op: 1, s: 2.1 });
+      await floatIn('n10', { s: 2.1, x: AW / 2, y: AH / 2 });
     });
     const calP = tl('n10') + lines.n10.d * .55;
     pointClick(calP - .45, .4, () => rect('.event-list li button.secondary'), () => clickSel('.event-list li button.secondary'));
-    at(calP, async () => { await st('curHide'); const r = await rect('.event-list li button.secondary'); await st('ring', { t0: calP, t1: T.n10_end - .2, x: r.x - 5, y: r.y - 4, w: r.w + 10, h: r.h + 8 }); });
-    sceneCard({ t0: g + .3, t1: T.n10_end - .1, cls: 'stamp', rise: 12, style: 'align-items:center', html: `<div class="stampbox" style="margin-top:9.5vh;padding:1.6vmin 3.4vmin"><div class="n" style="color:#f4f1e9">954</div><div class="t">upcoming repair events</div></div>` });
-    hideWin(T.n10_end - .25, .25);
+    at(calP - .05, async () => { await st('curHide'); const r = await rect('.event-list li button.secondary'); await highlight(r, calP - .05, T.n10_end - .2); });
   }
+  hideWin(T.s12 - .1, .5);
   queue.sort((a, b) => a.t - b.t);
 
   // ---- Frame loop ----
@@ -363,7 +362,7 @@ const server = http.createServer((q, s) => {
   const t0 = Date.now();
   for (let f = 0; f < total; f++) {
     const t = f / FPS;
-    while (qi < queue.length && queue[qi].t <= t) { await queue[qi].fn(); qi++; }
+    while (qi < queue.length && queue[qi].t <= t) { const event = queue[qi++]; await event.fn(); queue.splice(qi, queue.length - qi, ...queue.slice(qi).sort((a, b) => a.t - b.t)); }
     if (scroll) { const k = Math.min(1, (t - scroll.t0) / (scroll.t1 - scroll.t0)), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; await frame.evaluate(y => window.scrollTo({ top: y, behavior: 'instant' }), scroll.from + (scroll.to - scroll.from) * e); if (k >= 1) scroll = null; }
     await page.evaluate(x => stage.render(x), t);
     await page.clock.runFor(dtMs);

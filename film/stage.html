@@ -77,7 +77,7 @@ window.stage={
   const rg=$('ring');
   if(S.ring&&t<S.ring.t1){const a=smooth((t-S.ring.t0)/.35)*smooth((S.ring.t1-t)/.35);rg.style.opacity=a;Object.assign(rg.style,{left:S.ring.x+'px',top:S.ring.y+'px',width:S.ring.w+'px',height:S.ring.h+'px'})}else rg.style.opacity=0;
   for(const d of S.cards){
-   const fade=d.fade??.35,a=smooth((t-d.t0)/fade)*(d.t1>=1e8?1:smooth((d.t1-t)/fade));
+   const fade=d.fade??.35,a=smooth((t-d.t0)/(d.fadeIn??fade))*(d.t1>=1e8?1:smooth((d.t1-t)/(d.fadeOut??fade)));
    d.el.style.opacity=a;d.el.style.visibility=a>0?'visible':'hidden';
    if(d.rise!==0)d.el.style.transform=`translateY(${(1-smooth((t-d.t0)/(fade*1.6)))*(d.rise??18)}px) scale(${1+(d.drift??.018)*Math.max(0,t-d.t0)/Math.max(1,d.t1-d.t0)})`;
    for(const n of d.el.querySelectorAll('[data-to]')){const from=+n.dataset.from,to=+n.dataset.to,ds=+n.dataset.dur||1.6,ts=d.t0+(+n.dataset.delay||0);const k=1-Math.pow(1-Math.min(1,Math.max(0,(t-ts)/ds)),3);n.textContent=Math.round(from+(to-from)*k).toLocaleString('en-US')}

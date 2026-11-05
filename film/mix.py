@@ -28,13 +28,22 @@ GL, GA = 10 ** (7 / 20), 10 ** (-3 / 20)
 t5, t8, t12 = T['s05'], T['s08'], T['s12']; lead = A1 - 8.0
 place(largo, L0, .22, t5 - lead + .9, fin=.03, fout=1.4, gain=GL)
 pos = lambda t: A1 + (t - t5)
+splice = None
+if mode == 'landscape' and 'n12_card' in T:
+    entry = T['n12_card']
+    splice = {'entry_film': entry, 'entry_src': 146.2,
+              'second_end': entry + .2, 'second_fade_out': 2.0,
+              'third_start': entry - 2.5, 'third_src': 146.2 - 2.5,
+              'third_fade_in': 2.0, 'third_end': t12 - .1}
 if 2 <= A2 - pos(t8) <= 12:    # both sides of the join are in the quiet strings, so a soft crossfade hides it
     tx = t5 + (44 - A1)
     place(allegro, pos(t5 - lead), t5 - lead, tx + .5, fin=1.2, fout=1.0, gain=GA)
-    place(allegro, A2 - (t8 - (tx - .5)), tx - .5, t12 - .1, fin=1.0, fout=2.2, gain=GA)
+    place(allegro, A2 - (t8 - (tx - .5)), tx - .5, splice['second_end'] if splice else t12 - .1, fin=1.0, fout=2.0 if splice else 2.2, gain=GA)
 else:                          # short version: cut on the entry itself
     place(allegro, pos(t5 - lead), t5 - lead, t8 + .2, fin=1.2, fout=.35, gain=GA)
-    place(allegro, A2 - .15, t8 - .15, t12 - .1, fin=.25, fout=1.6, gain=GA)
+    place(allegro, A2 - .15, t8 - .15, splice['second_end'] if splice else t12 - .1, fin=.25, fout=2.0 if splice else 1.6, gain=GA)
+if splice:
+    place(allegro, splice['third_src'], splice['third_start'], splice['third_end'], fin=2.0, fout=2.2, gain=GA)
 chord = t12 + .2
 place(allegro, Af, chord, END + .05, fin=.02, fout=1.3, gain=GA * 1.1)
 voice = np.zeros(N)
@@ -63,4 +72,4 @@ i0, _ = measure(HERE / f'work/mix_{mode}_raw.wav')
 # Plain gain to -16 LUFS, then a limiter only for the few music peaks: speech level stays untouched.
 subprocess.run([FF, '-y', '-v', 'error', '-i', str(HERE / f'work/mix_{mode}_raw.wav'), '-af', f'volume={-16 - i0:.2f}dB,alimiter=limit=0.82:attack=5:release=80:level=false', '-ar', '48000', '-c:a', 'pcm_s16le', str(out)], check=True)
 print('loudness', measure(out))
-print(json.dumps({'largo_from': round(L0, 2), 'allegro_from': round(pos(t5 - lead), 2), 'allegro_second_entry': round(A2, 2), 'final_chord': round(Af, 2), 't5': round(t5, 2), 't8': round(t8, 2), 't12': round(t12, 2)}))
+print(json.dumps({'largo_from': round(L0, 2), 'allegro_from': round(pos(t5 - lead), 2), 'allegro_second_entry': round(A2, 2), 'final_chord': round(Af, 2), 't5': round(t5, 2), 't8': round(t8, 2), 't12': round(t12, 2), 'splice': splice}))
