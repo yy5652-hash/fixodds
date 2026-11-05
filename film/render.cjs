@@ -16,10 +16,14 @@ const { makePlan } = require('./plan.cjs');
 const { T, lines, caps, END } = makePlan(mode);
 fs.writeFileSync(`${__dirname}/work/timeline_${mode}.json`, JSON.stringify({ scenes: T, lines, end: END }, null, 1));
 
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/json' };
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.png': 'image/png', '.webmanifest': 'application/json' };
 const server = http.createServer((q, s) => {
   const u = decodeURIComponent(q.url.split('?')[0]); let f;
   if (u === '/stage.html') f = __dirname + '/stage.html';
+  else if (u.startsWith('/footage/')) {
+    const candidate = path.resolve(__dirname, '.' + u);
+    if (candidate.startsWith(path.resolve(__dirname, 'footage') + path.sep)) f = candidate;
+  }
   else if (u.startsWith('/fonts/')) f = ROOT + '/node_modules/@fontsource-variable/inter/files/' + path.basename(u);
   else if (u.startsWith('/app/')) f = ROOT + '/dist/' + (u.slice(5) || 'index.html');
   if (!f || !fs.existsSync(f)) { s.writeHead(404); return s.end(); }
@@ -44,7 +48,13 @@ const server = http.createServer((q, s) => {
   const page = await ctx.newPage();
   await page.clock.install({ time: new Date('2026-11-04T11:00:00Z') });
   await page.goto(`http://127.0.0.1:${port}/stage.html`);
-  await page.evaluate(o => stage.init(o), { portrait: PORTRAIT, w: AW, h: AH, cy: PORTRAIT ? .44 : .5, src: `http://127.0.0.1:${port}/app/index.html`, caps });
+  const frameCounts = Object.fromEntries(require('./footage/clips.json').clips.map(c => {
+    const dir = path.join(__dirname, 'footage', PORTRAIT ? 'graded_v' : 'graded', c.id);
+    const count = fs.readdirSync(dir).filter(f => /^\d{4,}\.jpg$/.test(f)).length;
+    if (!count) throw Error('No graded footage: ' + c.id);
+    return [c.id, count];
+  }));
+  await page.evaluate(o => stage.init(o), { portrait: PORTRAIT, frameCounts, w: AW, h: AH, cy: PORTRAIT ? .44 : .5, src: `http://127.0.0.1:${port}/app/index.html`, caps });
   const frameEl = await page.waitForSelector('#app');
   const frame = await frameEl.contentFrame();
   await frame.waitForSelector('.check-form', { timeout: 20000 });
@@ -97,7 +107,7 @@ const server = http.createServer((q, s) => {
   sceneCard({ t0: T.s08 + .05, t1: s8split, html: `<div class="huge">${count(150000, 202076, 1.9)}</div><div class="label">recorded fixes</div>` });
   sceneCard({ t0: s8split, t1: T.s08_end - .05, html: `<div class="${PORTRAIT ? '' : 'row'}"><div><div class="big fix">≈5,400 t</div><div class="label">CO₂e</div></div><div ${PORTRAIT ? 'style="margin-top:6vmin"' : ''} data-in="0.7"><div class="big">≈700 t</div><div class="label">e-waste kept in use</div></div></div><div class="small">Same factors, fixes in categories with a factor. What repair already does, not FixOdds' own impact.</div>` });
   // End card
-  sceneCard({ t0: T.s12 - .1, t1: 1e9, fade: .5, drift: 0, html: `<div id="brand">FixOdds<span class="acc">.</span></div><div class="mid" style="margin-top:1vmin">Give repair a fair chance.</div><div class="label acc" style="margin-top:4.5vmin">yy5652-hash.github.io/fixodds</div><div class="small" style="margin-top:6vmin">${PORTRAIT ? 'Data: Open Repair Alliance · The Restart Project<br>OpenStreetMap contributors · Guides linked from iFixit<br>Music: Dvořák, Symphony No. 9, Musopen' : 'Data: Open Repair Alliance · The Restart Project · Restarters.net · OpenStreetMap contributors<br>Guides linked from iFixit · Music: Dvořák, Symphony No. 9, Musopen'}</div>` });
+  sceneCard({ t0: T.s12 - .1, t1: 1e9, fade: .5, drift: 0, html: `<div id="brand">FixOdds<span class="acc">.</span></div><div class="mid" style="margin-top:1vmin">Give repair a fair chance.</div><div class="label acc" style="margin-top:4.5vmin">yy5652-hash.github.io/fixodds</div><div class="small" style="margin-top:6vmin">${PORTRAIT ? 'Data: Open Repair Alliance · The Restart Project<br>OpenStreetMap contributors · Guides linked from iFixit<br>Music: Dvořák, Symphony No. 9, Musopen' : 'Data: Open Repair Alliance · The Restart Project · Restarters.net · OpenStreetMap contributors<br>Guides linked from iFixit · Music: Dvořák, Symphony No. 9, Musopen'}</div><div class="small" style="font-size:2vmin;max-width:90%;margin-top:2vmin">Footage: Pexels contributors · Repair Café Nijmegen-Oost (N1) and Repair Café Almelo (AAVISIE), CC BY 3.0, Wikimedia Commons</div>` });
 
   // New title cards cover navigation; the incoming window floats out of its tilt.
   const titles = {
@@ -109,7 +119,46 @@ const server = http.createServer((q, s) => {
   };
   for (const [id, html] of Object.entries(titles)) if (T[id + '_card'] !== undefined)
     sceneCard({ t0: T[id + '_card'], t1: T[id + '_card'] + 1.1, fadeIn: .15, fadeOut: .25,
-      rise: 0, drift: 0, style: 'background:#12100d', html });
+      rise: 0, drift: 0, html });
+  // Real footage follows the existing plan; no scene or narration timing changes.
+  const footage = [];
+  const reel = (id, t0, t1, dim, extra = {}) => footage.push({ id, t0, t1, dim, ...extra });
+  reel('hook', T.s01, T.s01_end, .45);
+  if (!PORTRAIT) {
+    const split = T.s02 + (T.s02_end - T.s02) * .6;
+    reel('ewaste', T.s02, split, .5);
+    reel('factory', split, T.s02_end, .5);
+  }
+  const signEnd = T.s03 + 1, repairEnd = tl('s03b') - .05;
+  reel('rc_sign', T.s03, signEnd, .5);
+  const repairSpan = (repairEnd - signEnd) / 3;
+  ['rc_hall', 'rc_probe', 'rc_bench'].forEach((id, i) =>
+    reel(id, signEnd + i * repairSpan, signEnd + (i + 1) * repairSpan, .5));
+  reel('rc_crowd', repairEnd, T.s03_end + (T.s04 !== undefined ? 1.2 : 0), .7, { fadeOut: .6 });  // covers the page coming in
+  if (!PORTRAIT) {
+    reel('ewaste', tl('s07b'), tl('s07c'), .6);
+    sceneCard({ t0: tl('s07b'), t1: tl('s07c'), html: '<div class="huge">≈1.8 kg</div><div class="label">e-waste kept in use</div>' });
+  }
+  reel('rc_lamp', T.s08, s8split, .55);
+  reel('rc_device', s8split, T.s08_end, .55);
+  for (const [scene, id, dim] of [['n09', 'diy', .55], ['n10', 'city', .55],
+    ['n11', 'phone', .55], ['n12', 'vacuum', .5], ['n13', 'rc_hall2', .6]]) {
+    if (T[scene + '_card'] !== undefined)
+      reel(id, T[scene + '_card'], T[scene + '_card'] + 1.1, dim, { fadeIn: .15, fadeOut: .25 });
+  }
+  if (!PORTRAIT) for (const [fraction, id] of [[.18, 'diy'], [.5, 'rc_bench'], [.76, 'shop']]) {
+    const t0 = tl('n09a') + lines.n09a.d * fraction;
+    reel(id, t0, t0 + 1.2, 0, { fadeIn: .08, fadeOut: .08 });
+  }
+  reel('kettle', T.s12 - .1, END, .65, { fadeOut: 0 });
+  // Adjacent shots overlap briefly for a two-image crossfade; title/UI boundaries stay fixed.
+  footage.sort((a, b) => a.t0 - b.t0);
+  for (let i = 0; i < footage.length - 1; i++) {
+    const a = footage[i], b = footage[i + 1];
+    if (Math.abs(a.t1 - b.t0) < 1e-6) { a.t1 += .15; a.fadeOut = .15; b.fadeIn = .15; }
+  }
+  for (const clip of footage) await st('clip', clip);
+
   // Centre the subject at 43% height, keeping the subtitle band clear.
   const subject = (r, s) => ({ ...fill(r.x + r.w / 2, r.y + r.h / 2, s),
     y: r.y + r.h / 2 + H * ((PORTRAIT ? .44 : .5) - .43) / s });
@@ -183,7 +232,7 @@ const server = http.createServer((q, s) => {
       await page.clock.runFor(300);
       await floatIn('n09', subject(await rect('.route-grid .route:nth-child(1)'), 1.8));
     });
-    for (const [fraction, index] of [[.52, 2], [.78, 3]]) {
+    for (const [fraction, index] of [[.18, 1], [.5, 2], [.76, 3]]) {
       const t = n9 + lines.n09a.d * fraction;
       at(t, async () => st('camTo', t, t + .7, subject(await rect(`.route-grid .route:nth-child(${index})`), 1.8)));
     }
@@ -364,6 +413,7 @@ const server = http.createServer((q, s) => {
     const t = f / FPS;
     while (qi < queue.length && queue[qi].t <= t) { const event = queue[qi++]; await event.fn(); queue.splice(qi, queue.length - qi, ...queue.slice(qi).sort((a, b) => a.t - b.t)); }
     if (scroll) { const k = Math.min(1, (t - scroll.t0) / (scroll.t1 - scroll.t0)), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; await frame.evaluate(y => window.scrollTo({ top: y, behavior: 'instant' }), scroll.from + (scroll.to - scroll.from) * e); if (k >= 1) scroll = null; }
+    // stage.render resolves only once both visible footage images have decoded.
     await page.evaluate(x => stage.render(x), t);
     await page.clock.runFor(dtMs);
     await Promise.all([page.evaluate(stepAnimations, dtMs), frame.evaluate(stepAnimations, dtMs)]);

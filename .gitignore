@@ -28,3 +28,12 @@ film/music/
 film/work/
 FEATURE_PLAN.md
 docs/research-competitors-live.md
+
+# Film footage: downloaded stock clips and graded frames (licences in film/footage/LICENSES.md)
+film/footage/raw/
+film/footage/graded/
+film/footage/graded_v/
+film/footage/thumbs/
+film/footage/norm/
+film/footage/strip/
+film/footage/sheets/
