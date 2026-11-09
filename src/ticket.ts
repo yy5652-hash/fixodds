@@ -12,19 +12,19 @@ export function encodeRepairTicket(input: Input, details: TicketDetails, include
   const payload = JSON.parse(new URLSearchParams(base.split('?')[1]).get('d')!);
   return '#/ticket?d=' + encodeURIComponent(JSON.stringify({ ...payload, ticket: cleanDetails(details) }));
 }
-// Short link for messages: item, age, years, brand, size and symptoms only, as indexes. No description, no notes.
+// Short link for messages: item, age, years, brand, size, symptoms, device type and model. Categories and symptoms use indexes. No description, no notes.
 const b64 = (s: string) => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64 = (s: string) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)));
 export function shortTicket(input: Input) {
   const sizes = factors[input.category]?.variants.map(v => v.name) || [];
-  return '#/ticket?s=' + b64(JSON.stringify([1, categories.indexOf(input.category), ages.indexOf(input.age as typeof ages[number]), input.years || '', input.brand.slice(0, 40), input.size ? sizes.indexOf(input.size) : -1, inputSymptoms(input).map(id => symptomIds.indexOf(id))]));
+  return '#/ticket?s=' + b64(JSON.stringify([1, categories.indexOf(input.category), ages.indexOf(input.age as typeof ages[number]), input.years || '', input.brand.slice(0, 40), input.size ? sizes.indexOf(input.size) : -1, inputSymptoms(input).map(id => symptomIds.indexOf(id)), input.deviceType || '', input.modelNumber || '']));
 }
 function decodeShort(raw: string) {
-  if (raw.length > 400) return null;
-  const [v, c, a, years, brand, size, symptoms] = JSON.parse(unb64(raw));
+  if (raw.length > 1600) return null;
+  const [v, c, a, years, brand, size, symptoms, deviceType = '', modelNumber = ''] = JSON.parse(unb64(raw));
   if (v !== 1 || !Array.isArray(symptoms)) return null;
   const category = categories[c];
-  const input = cleanInput({ category, age: ages[a], years, brand, problem: '', size: factors[category]?.variants[size]?.name, symptoms: symptoms.map((i: number) => symptomIds[i]) });
+  const input = cleanInput({ category, age: ages[a], years, brand, deviceType, modelNumber, problem: '', size: factors[category]?.variants[size]?.name, symptoms: symptoms.map((i: number) => symptomIds[i]) });
   return input ? { input, includesProblem: false, ticket: blankTicket } : null;
 }
 export const isSharedTicket = (hash: string) => /^#\/ticket\?(d|s)=/.test(hash);

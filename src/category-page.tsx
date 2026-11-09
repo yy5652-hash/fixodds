@@ -3,7 +3,7 @@ import { t, useLang, locale } from './i18n';
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, PackageSearch } from 'lucide-react';
 import { barrierActions, categories, inputSymptoms, label, englishLabel, stats, statuses, symptomData, type Input } from './core';
-import { countryName, fromSlug, loadCases, loadInsights, partsBarriers, score, similarCases, slug, wilson, type Case, type CategoryRecord, type Insights, type Row } from './records';
+import { countryName, fromSlug, loadCases, loadInsights, partsBarriers, similarCases, slug, wilson, type Case, type CategoryRecord, type Insights, type Row } from './records';
 import { GuideList } from './routes';
 import { number, percent } from './format';
 import { Card } from './ui/card';
@@ -49,7 +49,7 @@ export function SimilarCases({ input }: { input: Input }) {
 function Index({ data }: { data?: Insights }) {
   useLang();
   const list = [...categories].sort((a, b) => label(a).localeCompare(label(b),locale()));
-  return <article className="items-page"><p className="eyebrow">{t("403,558 real repair attempts")}</p><h1>{t("Repair records by item.")}</h1><p className="intro">{t("How often each kind of item was fixed at community repair events, with the brands, ages and problems behind it.")}</p><ul className="item-grid">{list.map(c => { const r = data?.categories[c]; return <li key={c}><a href={`#/item/${slug(c)}`}><strong>{label(c)}</strong>{r ? <><Bar row={[c, ...r.all]} compact/><span><b>{score(r.all[0], r.all[1])}</b>/10 · {number(r.all[0])} {t("attempts")}</span></> : <span>&nbsp;</span>}</a></li>; })}</ul><p className="small">{t("Score = share of attempts that ended fixed, out of 10. It measures past repair outcomes, not product design. Source: Open Repair Alliance (CC BY-SA 4.0).")}</p></article>;
+  return <article className="items-page"><p className="eyebrow">{t("403,558 real repair attempts")}</p><h1>{t("Repair records by item.")}</h1><p className="intro">{t("How often each kind of item was fixed at community repair events, with the brands, ages and problems behind it.")}</p><ul className="item-grid">{list.map(c => { const r = data?.categories[c]; return <li key={c}><a href={`#/item/${slug(c)}`}><strong>{label(c)}</strong>{r ? <><Bar row={[c, ...r.all]} compact/><span><b>{percent(r.all[1]/r.all[0])} {t("fixed")}</b> · {number(r.all[0])} {t("attempts")}</span><small>{t("fixed at recorded community repair events")}</small></> : <span>&nbsp;</span>}</a></li>; })}</ul><p className="small">{t("Fixed percentage = share of recorded community repair attempts that ended fixed. It measures past repair outcomes, not product design. Source: Open Repair Alliance (CC BY-SA 4.0).")}</p></article>;
 }
 export default function CategoryPage({ path }: { path: string }) {
   useLang();
@@ -63,7 +63,7 @@ export default function CategoryPage({ path }: { path: string }) {
   const input: Input = { category, age: 'unknown', brand: '', problem: '' };
   return <article className="item-page"><a className="back-link" href="#/items">{t("All items")}</a><p className="eyebrow">{t("Repair record")}</p><h1>{name}</h1>
     {error && <p className="notice">{t("Repair records could not load. Check your connection.")}</p>}
-    {r && <><div className="item-hero"><div><strong className="item-score">{score(r.all[0], r.all[1])}<small>/10</small></strong><span>{t('fixed in {rate} of {count} attempts', { rate: percent(r.all[1]/r.all[0]), count: number(r.all[0]) })}</span></div><div><Bar row={[category, ...r.all]}/><dl className="odds-labels"><div><dd>{percent(r.all[1] / r.all[0])}</dd><dt>{t("Fixed")}</dt></div><div><dd>{percent(r.all[2] / r.all[0])}</dd><dt>{t("More work or parts")}</dt></div><div><dd>{percent(1 - (r.all[1] + r.all[2]) / r.all[0])}</dd><dt>{t("End of life")}</dt></div></dl></div><a className="button primary" href={`#/?item=${slug(category)}`}>{t('Check my {item}', { item: locale()==='de-DE'?name:name.toLowerCase() })}</a></div>
+    {r && <><div className="item-hero"><div><strong className="item-score">{percent(r.all[1]/r.all[0])}<small> {t("fixed")}</small></strong><span>{t("fixed at recorded community repair events")}</span><span>{t('fixed in {rate} of {count} attempts', { rate: percent(r.all[1]/r.all[0]), count: number(r.all[0]) })}</span></div><div><Bar row={[category, ...r.all]}/><dl className="odds-labels"><div><dd>{percent(r.all[1] / r.all[0])}</dd><dt>{t("Fixed")}</dt></div><div><dd>{percent(r.all[2] / r.all[0])}</dd><dt>{t("More work or parts")}</dt></div><div><dd>{percent(1 - (r.all[1] + r.all[2]) / r.all[0])}</dd><dt>{t("End of life")}</dt></div></dl></div><a className="button primary" href={`#/?item=${slug(category)}`}>{t('Check my {item}', { item: locale()==='de-DE'?name:name.toLowerCase() })}</a></div>
       <PartsNotice category={category}/>
       <div className="item-grid-2">
         <Card><h2>{t("By age")}</h2><RecordTable rows={r.ages} name={a => t('{age} years', { age: a })} caption={t("Outcomes by age")} min={30}/><p className="small">{stat.medianAge != null ? t("Median age at repair: {value1} years ({number_stat_ageN_} with an age).", { value1: number(stat.medianAge, 1), number_stat_ageN_: number(stat.ageN) }) : ''} {t("Older items were often fixed too: age alone is rarely the reason to replace.")}</p></Card>

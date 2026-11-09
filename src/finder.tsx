@@ -143,7 +143,7 @@ function OpenBadge({ hours, now }: { hours: string; now: Date }) {
   useLang();
   const open = hours ? openAt(hours, now) : null;
   if (open === null) return hours ? <span className="hours">{t("Hours:")} {hours}</span> : <span className="hours muted">{t("Hours not listed")}</span>;
-  return <span className={`hours ${open ? 'is-open' : 'is-closed'}`}><Clock size={13}/>{open ? t("Open now") : t("Closed now")} · {hours}</span>;
+  return <span className={`hours ${open ? 'is-open' : 'is-closed'}`}><Clock size={13}/>{open ? t("Open now (your device's time)") : t("Closed now")} · {hours}</span>;
 }
 function Enquiry({ input, place }: { input: Input; place: RepairPlace }) {
   useLang();
@@ -182,7 +182,7 @@ export default function Finder({ input }: { input?: Input }) {
     {busy && <p role="status">{t("Looking for repair help…")}</p>}
     {error && <p role="alert" className="notice">{t(error)}</p>}
     {area && !busy && !error && <>
-      <div className="filter-bar" role="group" aria-label={t("Filter repair places")}><label>{t("Within")}<select value={radius} onChange={e=>setRadius(Number(e.target.value))}>{radii.map(r=><option key={r} value={r}>{r} km</option>)}</select></label><div className="chip-row">{kinds.map(k=>{const on=!hidden.includes(k);return <button type="button" key={k} className={`chip${on?' is-on':''}`} aria-pressed={on} onClick={()=>setHidden(on?[...hidden,k]:hidden.filter(x=>x!==k))}>{t(k)}</button>;})}<button type="button" className={`chip${openNow?' is-on':''}`} aria-pressed={openNow} onClick={()=>setOpenNow(!openNow)} disabled={!listedHours}><Clock size={13}/>{t("Open now")}</button></div></div>
+      <div className="filter-bar" role="group" aria-label={t("Filter repair places")}><label>{t("Within")}<select value={radius} onChange={e=>setRadius(Number(e.target.value))}>{radii.map(r=><option key={r} value={r}>{r} km</option>)}</select></label><div className="chip-row">{kinds.map(k=>{const on=!hidden.includes(k);return <button type="button" key={k} className={`chip${on?' is-on':''}`} aria-pressed={on} onClick={()=>setHidden(on?[...hidden,k]:hidden.filter(x=>x!==k))}>{t(k)}</button>;})}<button type="button" className={`chip${openNow?' is-on':''}`} aria-pressed={openNow} onClick={()=>setOpenNow(!openNow)} disabled={!listedHours}><Clock size={13}/>{t("Open now (your device's time)")}</button></div></div>
       <p className="eyebrow">{t('{count} mapped places near {place}', { count: number(shown.length), place: shortName(t(area.name)) })}{shown.length<places.filter(p=>!hidden.includes(p.kind)).length?t(" · {places_length} within {radius} km", { places_length: places.length, radius: radius }):''}</p>
       <MapView point={area} markers={shown.map(p=>({ lat:p.lat, lon:p.lon, label:p.name }))}/>
       <p className="small">{t("Map listings may be incomplete or out of date. Call ahead about your device, opening times and fees. A shop listing is not a repair recommendation. Opening times use this device’s clock.")}</p>

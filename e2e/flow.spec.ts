@@ -48,7 +48,7 @@ test('live odds, aliases, privacy, finder, PNG, ticket QR, log and method',async
   await expect(page.getByLabel(/Replacement price/)).toHaveValue('');
   await page.getByLabel(/Replacement price/).fill('200');
   await page.getByLabel(/Repair quote/).fill('20');
-  await expect(page.getByText('The quote is within your break-even spend.')).toBeVisible();
+  await expect(page.getByText('Below this illustrative limit')).toBeVisible();
   const png=page.waitForEvent('download');
   await page.getByRole('button',{name:'Share this',exact:true}).click();
   const pngDownload=await png;
@@ -61,7 +61,7 @@ test('live odds, aliases, privacy, finder, PNG, ticket QR, log and method',async
   await page.getByRole('button',{name:'Search places'}).click();
   await expect(page.getByText('2 mapped places near')).toBeVisible();
   await expect(page.getByRole('link',{name:'+441234567890'})).toHaveAttribute('href','tel:+441234567890');
-  await expect(page.getByText(/(Open|Closed) now · Mo-Fr 09:00-17:00/)).toBeVisible();
+  await expect(page.getByText(/(Open now \(your device's time\)|Closed now) · Mo-Fr 09:00-17:00/)).toBeVisible();
   await page.getByRole('button',{name:'Ask about this repair'}).first().click();
   const message=await page.getByLabel(/Your message/).inputValue();
   expect(message).toContain('#/ticket?s=');expect(message).not.toContain('private-marker');
@@ -72,7 +72,7 @@ test('live odds, aliases, privacy, finder, PNG, ticket QR, log and method',async
   await expect(page.getByRole('link',{name:/Directions/}).first()).toHaveAttribute('href','https://www.openstreetmap.org/directions?to=51.456,-2.59');
   await page.getByRole('button',{name:'What usually stops this repair'}).click();
   const guide=await page.getByRole('link',{name:/Search iFixit guides/}).first().getAttribute('href');
-  expect(decodeURIComponent(guide!)).toContain('Laptop');expect(guide).not.toContain('private-marker');
+  expect(decodeURIComponent(guide!)).toContain('laptop');expect(guide).not.toContain('private-marker');
   await page.getByRole('button',{name:'Make a repair ticket',exact:true}).click();
   await expect(page.locator('.ticket-sheet h1')).toHaveText('Laptop');
   await page.getByLabel('Agreed maximum spend').fill('80');

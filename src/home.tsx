@@ -6,7 +6,7 @@ import report from './data/report.json';
 import { categories, label, stats } from './core';
 import { loadEvents, readArea, upcoming, type Area } from './events';
 import { number, percent } from './format';
-import { score, slug } from './records';
+import { slug } from './records';
 const popular = [...categories].filter(c => c !== 'Misc').sort((a, b) => stats[b].n - stats[a].n).slice(0, 12);
 function LiveNumbers() {
   useLang();
@@ -25,7 +25,7 @@ function LiveNumbers() {
 }
 function PopularItems() {
   useLang();
-  return <section className="popular" aria-labelledby="popular-heading"><div className="section-heading"><h2 id="popular-heading">{t("What people bring to be fixed")}</h2><a href="#/items">{t('All {count} items', { count: categories.length })} <ArrowUpRight size={15}/></a></div><ul className="item-grid compact">{popular.map(c => { const s = stats[c]; return <li key={c}><a href={`#/?item=${slug(c)}`}><strong>{label(c)}</strong><span><b>{score(s.n, s.statusCounts.Fixed || 0)}</b>{t("/10 repair record ·")} {number(s.n)}</span></a></li>; })}</ul></section>;
+  return <section className="popular" aria-labelledby="popular-heading"><div className="section-heading"><h2 id="popular-heading">{t("What people bring to be fixed")}</h2><a href="#/items">{t('All {count} items', { count: categories.length })} <ArrowUpRight size={15}/></a></div><ul className="item-grid compact">{popular.map(c => { const s = stats[c]; return <li key={c}><a href={`#/?item=${slug(c)}`}><strong>{label(c)}</strong><span><b>{percent((s.statusCounts.Fixed || 0)/s.n)} {t("fixed")}</b> · {number(s.n)}</span><small>{t("fixed at recorded community repair events")}</small></a></li>; })}</ul></section>;
 }
 export function Promises() {
   useLang();

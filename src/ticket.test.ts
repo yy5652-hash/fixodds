@@ -36,3 +36,14 @@ test('short message links round-trip without the description', () => {
   expect(back.input).toMatchObject({ category: 'Laptop', age: '3-5', years: '5', brand: 'Dell', problem: '', size: 'Laptop medium', symptoms: ['battery', 'screen'] });
   expect(decodeRepairTicket('#/ticket?s=bad')).toBeNull();
 });
+
+test('old indexed short links without device type and model still open', () => {
+  const raw = JSON.stringify([1, 20, 0, '', 'Dell', -1, []]);
+  const hash = '#/ticket?s=' + btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  expect(decodeRepairTicket(hash)?.input).toMatchObject({ deviceType: '', modelNumber: '', problem: '' });
+});
+test('short and full tickets carry Unicode device type and model with bounded fields', () => {
+  const detailed = { ...input, deviceType: '微'.repeat(80), modelNumber: '型'.repeat(80) };
+  expect(decodeRepairTicket(shortTicket(detailed))?.input).toMatchObject({ deviceType: detailed.deviceType, modelNumber: detailed.modelNumber });
+  expect(decodeRepairTicket(encodeRepairTicket(detailed, details))?.input).toMatchObject({ deviceType: detailed.deviceType, modelNumber: detailed.modelNumber });
+});

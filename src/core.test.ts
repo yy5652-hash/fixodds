@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import golden from './data/golden.json';
 import report from './data/report.json';
-import { predict, verdict, impact, breakEven, quotePasses, safety, encodeTicket, decodeTicket, exportOrds, logTotals, ageBucket, detectSymptoms, inputSymptoms, contributions, symptomData, symptomIds, readLog, saveLog, factors, categories, stats, type Model, type LogEntry } from './core';
+import { predict, verdict, impact, breakEven, quotePasses, safety, encodeTicket, decodeTicket, exportOrds, logTotals, ageBucket, detectSymptoms, inputSymptoms, contributions, symptomData, symptomIds, readLog, saveLog, factors, categories, stats, toggleSymptom, changeCategory, cleanInput, type Model, type LogEntry } from './core';
 const model: Model = JSON.parse(readFileSync('public/model.json', 'utf8'));
 const input = { category: 'Laptop', age: '3-5', brand: 'Dell', problem: 'Will not charge. 電池故障', years: '4' };
 const entry: LogEntry = { id: 'local-1', date: '2026-11-01', input, status: 'Fixed' };
@@ -31,6 +31,32 @@ describe('symptom detection', () => {
     ['zuigt slecht', 'no_motion'], ['Bildschirm bleibt dunkel', 'screen'], ['Smoke and a burning smell', 'smell_smoke'],
     ['CRACKED casing', 'physical_break'], ['la fiche est cassée, cordon abîmé', 'cable_plug'],
   ])('detects %s as %s', (text, id) => expect(detectSymptoms(text)).toContain(id));
+  it.each([
+    ['battery is fine', 'battery'], ['not the battery', 'battery'], ['no problem with the screen', 'screen'],
+    ['no noise', 'noise'], ['Akku ist in Ordnung', 'battery'], ['kein Problem mit dem Bildschirm', 'screen'],
+    ['geen probleem met de batterij', 'battery'], ['geen probleem met het scherm', 'screen'],
+    ['la batterie va bien', 'battery'], ['pas de problème avec l’écran', 'screen'], ['pas de bruit', 'noise'],
+  ])('does not suggest a negated symptom: %s', (text, id) => expect(detectSymptoms(text)).not.toContain(id));
+  it('keeps positive faults in other clauses and later mentions of the same symptom', () => {
+    expect(detectSymptoms('battery is fine, but the screen is cracked')).toEqual(['screen', 'physical_break']);
+    expect(detectSymptoms('Akku ist in Ordnung, aber Bildschirm bleibt dunkel')).toEqual(['screen']);
+    expect(detectSymptoms('No noise, but now it makes a noise')).toContain('noise');
+  });
+  it('lets a rejected detection stay off across other edits and allows a manual override', () => {
+    const detected = { ...input, problem: 'battery problem' };
+    const off = toggleSymptom(detected, 'battery');
+    expect(inputSymptoms(off)).toEqual([]);
+    expect(inputSymptoms({ ...off, brand: 'Other' })).toEqual([]);
+    expect(inputSymptoms(toggleSymptom(off, 'battery'))).toEqual(['battery']);
+    expect(inputSymptoms({ ...off, symptoms: ['battery'] })).toEqual(['battery']);
+    expect(inputSymptoms({ ...off, problem: 'new battery problem', rejectedSymptoms: [] })).toEqual(['battery']);
+    expect(inputSymptoms(decodeTicket(encodeTicket(off, true))!.input)).toEqual([]);
+  });
+  it('changing category keeps brand and age and clears old symptoms and item details', () => {
+    const changed = changeCategory({ ...input, symptoms: ['screen'], rejectedSymptoms: ['battery'], deviceType: 'notebook', modelNumber: 'ABC' }, 'Kettle');
+    expect(changed).toMatchObject({ category: 'Kettle', brand: 'Dell', age: '3-5', years: '4', problem: '', deviceType: '', modelNumber: '' });
+    expect(inputSymptoms(changed)).toEqual([]);
+  });
   it('matches whole words or declared prefixes, not substrings inside other words', () => {
     expect(detectSymptoms('deadline approaching')).not.toContain('no_power');
     expect(detectSymptoms('dead')).toContain('no_power');
@@ -140,4 +166,23 @@ it('README numbers match report.json, stats.json and factors.json (guards agains
     if (f) { co2 += stats[c].statusCounts.Fixed * f.footprint * 0.5; kg += stats[c].statusCounts.Fixed * f.weight; quantified += stats[c].statusCounts.Fixed; }
   }
   for (const v of [n(totals.Fixed), n(totals.Repairable), n(totals['End of life']), n(quantified), n(Math.round(co2 / 1000)), n(Math.round(kg / 1000))]) expect(readme).toContain(v);
+});
+
+it('spending limit uses Fixed only even when further repair might be possible', () => {
+  const p = predict(input, model);
+  expect(breakEven(p[0], 200)).toBe(p[0] * 200);
+  expect(quotePasses(p[0], 200, (p[0] + p[1] / 2) * 200)).toBe(false);
+  expect(breakEven(0, 200)).toBe(0);
+  expect(quotePasses(0, 200, 1)).toBe(false);
+});
+it.each(['microwave', 'power supply', 'capacitor', 'high voltage', 'CRT', 'gas cooker', 'swollen battery'])('safety checks device type: %s', deviceType => {
+  expect(safety({ ...input, problem: '', deviceType }).length).toBeGreaterThan(0);
+});
+it('bounds optional item details and carries them into ORDS problem notes', () => {
+  const detailed = { ...input, deviceType: 'notebook', modelNumber: 'Latitude 5420' };
+  expect(decodeTicket(encodeTicket(detailed))?.input).toMatchObject({ deviceType: 'notebook', modelNumber: 'Latitude 5420' });
+  expect(cleanInput({ ...detailed, deviceType: 1, modelNumber: 'a'.repeat(81) })).toMatchObject({ deviceType: '', modelNumber: 'a'.repeat(80) });
+  const csv = exportOrds([{ ...entry, input: detailed }]);
+  expect(csv).toContain('Model number: Latitude 5420');
+  expect(csv).toContain('Device type: notebook');
 });

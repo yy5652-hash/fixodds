@@ -8,7 +8,7 @@ export const categories = Object.keys(statsData);
 export const ages = ['unknown', '0-2', '3-5', '6-10', '11-20', '21+'] as const;
 export const statuses = ['Fixed', 'Repairable', 'End of life'] as const;
 export type Status = typeof statuses[number];
-export type Input = { category: string; age: string; brand: string; problem: string; size?: string; years?: string; symptoms?: string[] };
+export type Input = { category: string; age: string; brand: string; problem: string; deviceType?: string; modelNumber?: string; size?: string; years?: string; symptoms?: string[]; rejectedSymptoms?: string[] };
 export type Probabilities = [number, number, number];
 export type Model = { version: number; classes: string[]; brands: string[]; features: string[]; coefficients: number[][]; intercept: number[] };
 export type Factor = { name: string; restartId: number; weight: number; footprint: number };
@@ -32,10 +32,27 @@ export function symptomText(s: string): string {
   return ` ${words.join(' ')} `;
 }
 export const detectSymptoms = (problem: string) => {
-  const text = symptomText(problem);
-  return symptomIds.filter(id => symptomData[id].terms.some(t => text.includes(t)));
+  // Keep negation local so a healthy battery does not hide a screen fault.
+  const clauses = problem.split(/[.!?;,\n]|\b(?:but|however|maar|aber|sondern|mais|pourtant)\b/iu).map(symptomText);
+  const before = /(?:no |not |geen |kein(?:e|en)? |nicht |pas de |aucun(?:e)? |not (?:the |a |an )?|no (?:problem|issue|trouble)s? (?:with )?(?:the )?|geen (?:probleem|problemen) (?:met )?(?:(?:de|het|een) )?|nicht (?:der |die |das |am |den )?|kein(?:e|en)? problem(?:e)? (?:mit )?(?:dem |der )?|pas (?:de (?:problème|probleme|souci) (?:avec )?)?(?:la |le |les |l )?)$/u;
+  const after = /^\s*(?:(?:is|are|works?|seems?)\s+(?:fine|ok(?:ay)?|well|normally|working (?:fine|well|normally|properly))|(?:ist|sind|funktioniert)\s+(?:in ordnung|gut|ok(?:ay)?|einwandfrei)|(?:is|werkt)\s+(?:goed|prima|in orde)|(?:va|fonctionne)\s+bien|(?:est|sont)\s+(?:en bon état|en bon etat|ok)|(?:has|have) no (?:problem|issue))/u;
+  return symptomIds.filter(id => clauses.some(text => symptomData[id].terms.some(term => {
+    let start = text.indexOf(term);
+    while (start !== -1) {
+      if (!before.test(text.slice(0, start).trimEnd() + ' ') && !after.test(text.slice(start + term.length))) return true;
+      start = text.indexOf(term, start + term.length);
+    }
+    return false;
+  })));
 };
-export const inputSymptoms = (input: Input) => [...new Set([...detectSymptoms(input.problem), ...(input.symptoms || [])])].sort();
+export const inputSymptoms = (input: Input) => [...new Set([...detectSymptoms(input.problem).filter(id => !input.rejectedSymptoms?.includes(id)), ...(input.symptoms || [])])].filter(id => symptomIds.includes(id)).sort();
+export function toggleSymptom(input: Input, id: string): Input {
+  const on = inputSymptoms(input).includes(id);
+  return { ...input, symptoms: on ? (input.symptoms || []).filter(s => s !== id) : [...(input.symptoms || []), id], rejectedSymptoms: on ? [...new Set([...(input.rejectedSymptoms || []), id])] : (input.rejectedSymptoms || []).filter(s => s !== id) };
+}
+export function changeCategory(input: Input, category: string): Input {
+  return category === input.category ? input : { ...input, category, size: factors[category]?.default || undefined, problem: '', symptoms: [], rejectedSymptoms: [], deviceType: '', modelNumber: '' };
+}
 export function ageBucket(value: string): string {
   if (!value.trim()) return 'unknown';
   const n = Number(value);
@@ -83,8 +100,8 @@ export function impact(pFixed: number, factor: Factor) {
   const fullCarbon = factor.footprint * displacement;
   return { carbon: pFixed * fullCarbon, waste: pFixed * factor.weight, fullCarbon, fullWaste: factor.weight };
 }
-export const breakEven = (feasible: number, replacement: number) => feasible * replacement;
-export function quotePasses(feasible: number, replacement: number, quote: number) { return quote <= breakEven(feasible, replacement); }
+export const breakEven = (pFixed: number, replacement: number) => pFixed * replacement;
+export function quotePasses(pFixed: number, replacement: number, quote: number) { return quote <= breakEven(pFixed, replacement); }
 export const friendly: Record<string, string> = { 'Mobile': 'Mobile phone', 'Flat screen': 'TV or monitor', 'Misc': 'Other electrical item', 'PC accessory': 'Computer accessory', 'Large home electrical': 'Large household appliance', 'Small home electrical': 'Small household appliance', 'Hi-Fi integrated': 'Hi-fi system', 'Hi-Fi separates': 'Hi-fi component', 'Hair & beauty item': 'Hair & beauty appliance', 'Battery/charger/adapter': 'Battery, charger or adapter' };
 export const englishLabel = (category: string) => friendly[category] || category;
 export const label = (category: string) => t(englishLabel(category));
@@ -95,10 +112,10 @@ const safetyRules: [string, RegExp][] = [
   ['Possible gas hazard', /\b(gas|gaz|gás|gasse|gaslek)\b|煤气|煤氣|燃气|燃氣|漏气|漏氣/iu],
   ['Water leak near electrics', /water.{0,20}leak|leak.{0,20}water|fuite.{0,10}eau|fuga.{0,10}(agua|água)|wasser.{0,15}(leck|tritt|läuft)|waterlekkage|lekt|perdita.{0,10}acqua|漏水/iu],
   ['Microwave high-voltage parts', /microwave|micro[ -]?ondes?|mikrowelle|microondas|magnetron|microonde|微波炉|微波爐/iu],
-  ['Opening mains-powered equipment', /\b(mains|power supply|high voltage)\b|open.{0,25}(plug|socket|charger|kettle|toaster|appliance)|ouvr.{0,25}(secteur|alimentation)|öffn.{0,25}(netz|steck)|abrir.{0,25}(red|enchufe|fuente)|open.{0,25}(netspann|stekker)|alta tension|netspanning|netzspannung|市电|市電|拆.{0,6}(插座|电源|電源)|高压|高壓/iu],
+  ['Opening mains-powered equipment', /\b(mains|power[ -]suppl(?:y|ies)|capacitors?|high[ -]voltage|crt)\b|open.{0,25}(plug|socket|charger|kettle|toaster|appliance)|ouvr.{0,25}(secteur|alimentation)|öffn.{0,25}(netz|steck)|abrir.{0,25}(red|enchufe|fuente)|open.{0,25}(netspann|stekker)|alta tension|netspanning|netzspannung|市电|市電|拆.{0,6}(插座|电源|電源)|高压|高壓/iu],
 ];
 export function safety(input: Input): string[] {
-  const text = normalize(input.problem);
+  const text = normalize(`${input.deviceType || ''}\n${input.problem}`);
   const found = safetyRules.filter(([, pattern]) => pattern.test(text)).map(([reason]) => reason);
   // A ticked chip is as serious as the same words typed in.
   if (input.symptoms?.some(id => id === 'smell_smoke' || id === 'sparks_trips')) found.push('Smoke, burning or sparks');
@@ -110,7 +127,7 @@ export const barrierActions: Record<string, string> = {
   'Product too worn out': 'Ask a technician to check whether several parts have failed before paying for a single replacement.',
   'Repair information not available': 'Search iFixit for the model number, then ask the manufacturer for a service manual.',
   'No way to open product': 'Find a teardown guide and ask a repairer about safe access. Do not force sealed or mains-powered housings.',
-  'Spare parts too expensive': 'Get a written parts-and-labour quote and compare it with your break-even spend below.',
+  'Spare parts too expensive': 'Get a written parts-and-labour quote and compare it with the illustrative repair-spending guide.',
   'Lack of equipment': 'Ask a repair cafe or professional whether they have the diagnostic tools for this item.',
 };
 export function cleanInput(value: unknown): Input | null {
@@ -122,7 +139,10 @@ export function cleanInput(value: unknown): Input | null {
   const size = typeof v.size === 'string' && factors[v.category]?.variants.some(f => f.name === v.size) ? v.size : undefined;
   const symptoms = Array.isArray(v.symptoms) ? v.symptoms.filter((x): x is string => typeof x === 'string' && symptomIds.includes(x)) : [];
   const years = typeof v.years === 'string' && ageBucket(v.years) !== 'unknown' ? v.years.slice(0, 6) : '';
-  return { category: v.category, age: v.age, brand: v.brand.slice(0, 80), problem: Array.from(v.problem).slice(0, 1000).join(''), size, years, symptoms };
+  const deviceType = typeof v.deviceType === 'string' ? Array.from(v.deviceType).slice(0, 80).join('') : '';
+  const modelNumber = typeof v.modelNumber === 'string' ? Array.from(v.modelNumber).slice(0, 80).join('') : '';
+  const rejectedSymptoms = Array.isArray(v.rejectedSymptoms) ? v.rejectedSymptoms.filter((x): x is string => typeof x === 'string' && symptomIds.includes(x)) : [];
+  return { category: v.category, age: v.age, brand: v.brand.slice(0, 80), problem: Array.from(v.problem).slice(0, 1000).join(''), deviceType, modelNumber, size, years, symptoms, rejectedSymptoms };
 }
 export function encodeTicket(input: Input, includeProblem = false): string {
   return '#/ticket?d=' + encodeURIComponent(JSON.stringify({ v: 1, input: { ...input, problem: includeProblem ? input.problem : '', symptoms: inputSymptoms(input) }, includesProblem: includeProblem }));
@@ -192,5 +212,5 @@ function csvCell(value: string) {
   return '"' + safe.replace(/"/g, '""') + '"';
 }
 export function exportOrds(entries: LogEntry[]): string {
-  return [ordsColumns.join(','), ...entries.map(e => [e.id, 'FixOdds personal log', '', '', e.input.category, stats[e.input.category]?.ordsId || '', e.input.brand, '', e.input.years || '', e.status, '', '', e.date, e.input.problem].map(csvCell).join(','))].join('\r\n') + '\r\n';
+  return [ordsColumns.join(','), ...entries.map(e => [e.id, 'FixOdds personal log', '', '', e.input.category, stats[e.input.category]?.ordsId || '', e.input.brand, '', e.input.years || '', e.status, '', '', e.date, [e.input.problem, e.input.deviceType && `${t('Device type')}: ${e.input.deviceType}`, e.input.modelNumber && `${t('Model number')}: ${e.input.modelNumber}`].filter(Boolean).join('\n')].map(csvCell).join(','))].join('\r\n') + '\r\n';
 }

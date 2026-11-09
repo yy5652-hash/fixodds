@@ -90,7 +90,7 @@ export function Method() {
       <ul>{report.verdictBands.map(b => <li key={b.verdict}>F at least {number(b.low, 2)}: <strong>{b.verdict}</strong>{b.low === 0 ? ' (the rest)' : ''}</li>)}</ul>
       <p>The cut-offs are fixed in the code, and the table above reports what actually happened in each band on data the model never saw. Safety notices override the verdict at every level. Keyword checks cover English, French, German, Spanish, Dutch, Italian, Portuguese and Chinese but cannot recognise every hazard or language, so the absence of a notice does not mean an item is safe.</p>
       <h3>{t("Environmental and money formulas")}</h3>
-      <p>Expected kg CO₂e avoided = P(Fixed) × category footprint × 0.5.<br />Expected kg of e-waste kept in use = P(Fixed) × category weight.<br />The full-success figure and every logged Fixed outcome use P(Fixed) = 1.<br />Break-even repair spend = F × the replacement price you enter. No prices are built in.</p>
+      <p>Expected kg CO₂e avoided = P(Fixed) × category footprint × 0.5.<br />Expected kg of e-waste kept in use = P(Fixed) × category weight.<br />The full-success figure and every logged Fixed outcome use P(Fixed) = 1.<br />{t("Illustrative repair-spending guide")}: {t("Assumes you pay even if it fails: P(Fixed) × replacement price.")}</p>
       <p>Weights and footprints are category averages from The Restart Project’s current <code>up()</code> migration values, matched by category name. The 0.5 is their displacement factor: the assumption that half of repairs prevent a new purchase. Laptop defaults to medium and flat screens to 22–24 inches; hair dryer and food processor use labelled broader-category proxies. {unquantified.length} categories have no factor and are left unquantified rather than invented: {unquantified.map(c => englishLabel(c).toLowerCase()).join(', ')}.</p>
       <details><summary>Audit every category factor</summary><div className="table-scroll"><table>
         <thead><tr><th scope="col">Category</th><th scope="col">Restart factor</th><th scope="col">kg</th><th scope="col">kg CO₂e</th></tr></thead>
@@ -101,7 +101,7 @@ export function Method() {
     <section className="ruled" id="model">
       <h2>{t("What goes into the model")}</h2>
       <p>Multinomial logistic regression with {number(report.model.features)} binary features: item category, age bucket (including unknown), the most common brands in the training data plus other and unknown, the {report.model.symptoms} symptoms, and category-by-symptom pairs. Provider, country, group and event date are never inputs. Browser predictions match {golden.length} exported Python predictions within 0.000001.</p>
-      <p>The model file is {number(report.model.gzipBytes / 1024, 1)} KiB gzipped. Predictions run on your device; there are no accounts, no analytics and no backend. The optional finder sends only your place or coordinates to OpenStreetMap services; outbound guide links include the item category and brand, never your description.</p>
+      <p>The model file is {number(report.model.gzipBytes / 1024, 1)} KiB gzipped. Predictions run on your device; there are no accounts, no analytics and no backend. The optional finder sends only your place or coordinates to OpenStreetMap services; {t("Guide searches can include category, device type, brand, model number and selected symptoms, never your description.")}</p>
     </section>
 
     <section className="ruled" id="limits">
