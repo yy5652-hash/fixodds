@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { dictionary, initialLang, langs, locale, setLanguage, t } from './i18n';
-import { barrierActions, categories, englishLabel, label, safety, symptomData, verdict, type Input } from './core';
+import { barrierActions, categories, englishLabel, label, safety, symptomData, verdict, type Input, stages, intentions } from './core';
 import { number, date } from './format';
 import { slug } from './records';
 import { enquiryText } from './enquiry';
@@ -37,7 +37,7 @@ describe('translation coverage', () => {
   });
   it('covers data labels, barriers, outcomes, verdicts and safety reasons', () => {
     const input: Input = { category: 'Large home electrical', age: 'unknown', brand: '', problem: 'swollen battery smoke gas water leak microwave open power supply' };
-    const keys = [...categories.map(englishLabel), ...Object.values(symptomData).map(s => s.label), ...Object.keys(barrierActions), ...Object.values(barrierActions), ...safety(input), 'Fixed', 'More work or parts', 'End of life', ...[0,.7,.9].map(verdict)];
+    const keys = [...stages, 'Enquiry sent?', 'FULL', 'Cancelled', 'Booking required', 'Add anyway', 'Yes, I sent it', 'Not yet', 'Next step added to your tracker.', 'Choose a next step', 'Find a matching guide', 'Find a repair event', 'Ask a repairer for a diagnosis and quote', 'Order or ask about the part', ...intentions.map(i=>i[0].toUpperCase()+i.slice(1)), ...categories.map(englishLabel), ...Object.values(symptomData).map(s => s.label), ...Object.keys(barrierActions), ...Object.values(barrierActions), ...safety(input), 'Fixed', 'More work or parts', 'End of life', ...[0,.7,.9].map(verdict)];
     for (const key of keys) expect(Object.hasOwn(dictionary, key), key).toBe(true);
   });
 });

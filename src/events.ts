@@ -1,8 +1,8 @@
 // Upcoming community repair events (Restarters.net snapshot, rebuilt daily) and calendar files for them.
 export type Point = { lat: number; lon: number };
 export type Area = Point & { name: string };
-export type RepairEvent = { id: number; start: string; end: string; timezone: string; title: string; location: string; lat: number | null; lon: number | null; group: string; online: boolean; country: string; distance?: number };
-type Row = [number, string, string, string, string, string, number | null, number | null, string, number, string];
+export type RepairEvent = { id: number; start: string; end: string; timezone: string; title: string; location: string; lat: number | null; lon: number | null; group: string; online: boolean; country: string; distance?: number; description?: string };
+type Row = [number, string, string, string, string, string, number | null, number | null, string, number, string, string?];
 type EventData = { built: string; events: Row[] };
 export function distance(a: Point, b: Point): number {
   const radians = (v: number) => v * Math.PI / 180;
@@ -11,7 +11,7 @@ export function distance(a: Point, b: Point): number {
 }
 export const eventLink = (e: RepairEvent) => `https://restarters.net/party/view/${e.id}`;
 export function readRows(data: EventData): RepairEvent[] {
-  return data.events.map(([id, start, end, timezone, title, location, lat, lon, group, online, country]) => ({ id, start, end, timezone, title, location, lat, lon, group, online: !!online, country }));
+  return data.events.map(([id, start, end, timezone, title, location, lat, lon, group, online, country, description]) => ({ id, start, end, timezone, title, location, lat, lon, group, online: !!online, country, ...(description ? { description } : {}) }));
 }
 // Events that have not ended, nearest first within the radius; online events are listed after in-person ones.
 export function upcoming(events: RepairEvent[], now: Date, area?: Point, radius = 50, limit = 30): RepairEvent[] {
@@ -21,12 +21,23 @@ export function upcoming(events: RepairEvent[], now: Date, area?: Point, radius 
   return near.sort((a, b) => a.start.localeCompare(b.start) || a.distance - b.distance).slice(0, limit);
 }
 export function nextNear(events: RepairEvent[], now: Date, area: Point, radius = 25) { return upcoming(events, now, area, radius, 1)[0]; }
-let cache: Promise<RepairEvent[]> | undefined;
-export function loadEvents(): Promise<RepairEvent[]> {
-  if (!cache) cache = fetch('./events.json').then(r => { if (!r.ok) throw Error('Repair events could not be loaded.'); return r.json(); }).then(readRows).catch(e => { cache = undefined; throw e; });
+let cache: Promise<{ built: string; events: RepairEvent[] }> | undefined;
+function loadSnapshot() {
+  if (!cache) cache = fetch('./events.json').then(r => { if (!r.ok) throw Error('Repair events could not be loaded.'); return r.json(); }).then((data: EventData) => ({ built: data.built, events: readRows(data) })).catch(e => { cache = undefined; throw e; });
   return cache;
 }
-export const eventsBuilt = () => fetch('./events.json').then(r => r.json()).then((d: EventData) => d.built).catch(() => '');
+export const loadEvents = (): Promise<RepairEvent[]> => loadSnapshot().then(d => d.events);
+export const eventsBuilt = () => loadSnapshot().then(d => d.built).catch(() => '');
+export type EventStatus = 'FULL' | 'Cancelled' | 'Booking required';
+export function eventStatuses(event: Pick<RepairEvent, 'title' | 'description'>): EventStatus[] {
+  const text = `${event.title} ${event.description || ''}`.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ');
+  const labels: EventStatus[] = [];
+  if (/\b(full(?:y booked)?|sold[ -]out)\b/i.test(text.replace(/\b(?:not|never)\s+full\b/gi, ''))) labels.push('FULL');
+  if (/\bcancell?ed\b/i.test(text.replace(/\b(?:not|never)\s+cancell?ed\b/gi, ''))) labels.push('Cancelled');
+  const booking = text.replace(/\b(?:no\s+(?:booking(?:s)?|registration|reservation)(?:\s+is)?\s+(?:required|essential|mandatory)|(?:booking(?:s)?|registration|reservation)(?:\s+is)?\s+not\s+(?:required|essential|mandatory))\b/gi, '');
+  if (/\b(?:booking(?:s)?|registration|reservation)(?:\s+is)?\s+(?:required|essential|mandatory)\b|\bmust\s+book\b|\bbook(?:ing)?\s+in\s+advance\b/i.test(booking)) labels.push('Booking required');
+  return labels;
+}
 export function formatWhen(e: RepairEvent, locale = 'en-GB') {
   const start = new Date(e.start), end = e.end ? new Date(e.end) : undefined;
   const opts: Intl.DateTimeFormatOptions = { timeZone: e.timezone || undefined };

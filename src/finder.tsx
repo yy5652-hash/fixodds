@@ -9,7 +9,8 @@ import { distance, readArea, saveArea, type Area } from './events';
 export { distance };
 import { number } from './format';
 import { openAt } from './hours';
-import { englishLabel, type Input } from './core';
+import { useJobs, EnquiryConfirmation } from './journey';
+import { openEnquiry, sameItem, saveStep, englishLabel, type Input } from './core';
 export type Point = { lat: number; lon: number };
 export type Place = Point & { display_name: string };
 export type RepairPlace = Point & { name: string; kind: string; website: string; osm: string; phone: string; hours: string; distance: number };
@@ -147,12 +148,15 @@ function OpenBadge({ hours, now }: { hours: string; now: Date }) {
 }
 function Enquiry({ input, place }: { input: Input; place: RepairPlace }) {
   useLang();
+  const { jobs,error,update } = useJobs();
+  const job=jobs.find(j=>j.stage!=='Done'&&sameItem(j.input,input));
+  function opened() { const next=job?jobs:saveStep(jobs,input,{route:'shop'}); const target=job||next.find(j=>j.stage!=='Done'&&sameItem(j.input,input)); update(next.map(j=>j.id===target?.id?openEnquiry(j,place.name):j)); }
   const ticket = window.location.href.split('#')[0] + shortTicket(input);
   const [text,setText] = useState(() => enquiryText(input, ticket, place.name));
   const [copied,setCopied] = useState('');
   const links = enquiryLinks(text, place.phone, `Repair enquiry: ${englishLabel(input.category)}`);
   async function copy() { try { await navigator.clipboard.writeText(text); setCopied('Message copied.'); } catch { setCopied('Select the message and copy it.'); } }
-  return <div className="enquiry"><label>{t("Your message")} <span className="optional">{t("edit before sending")}</span><textarea rows={6} maxLength={2000} value={text} onChange={e=>setText(e.target.value)}/></label><div className="actions">{links.sms&&<a className="button" href={links.sms}><Send size={15}/>{t("Text message")}</a>}{links.whatsapp&&<a className="button" href={links.whatsapp} target="_blank" rel="noopener noreferrer"><MessageCircle size={15}/>WhatsApp</a>}<a className="button" href={links.email}><Mail size={15}/>{t("Email")}</a><button type="button" className="secondary" onClick={()=>void copy()}><Copy size={15}/>{t("Copy")}</button>{place.website&&<a className="button ghost" href={place.website} target="_blank" rel="noreferrer nofollow">{t("Contact page ↗")}</a>}</div>{copied&&<p role="status" className="small">{t(copied)}</p>}<p className="small">{t("Sent from your own phone or mail app. FixOdds does not see or store it. The link opens your repair ticket without your description.")}</p></div>;
+  return <div className="enquiry"><label>{t("Your message")} <span className="optional">{t("edit before sending")}</span><textarea rows={6} maxLength={2000} value={text} onChange={e=>setText(e.target.value)}/></label><div className="actions">{links.sms&&<a className="button" href={links.sms} onClick={opened}><Send size={15}/>{t("Text message")}</a>}{links.whatsapp&&<a className="button" href={links.whatsapp} onClick={opened} target="_blank" rel="noopener noreferrer"><MessageCircle size={15}/>WhatsApp</a>}<a className="button" href={links.email} onClick={opened}><Mail size={15}/>{t("Email")}</a><button type="button" className="secondary" onClick={()=>void copy()}><Copy size={15}/>{t("Copy")}</button>{place.website&&<a className="button ghost" href={place.website} target="_blank" rel="noreferrer nofollow">{t("Contact page ↗")}</a>}</div>{job&&<EnquiryConfirmation job={job}/>}{error&&<p role="alert">{t(error)}</p>}{copied&&<p role="status" className="small">{t(copied)}</p>}<p className="small">{t("Sent from your own phone or mail app. FixOdds does not see or store it. The link opens your repair ticket without your description.")}</p></div>;
 }
 export default function Finder({ input }: { input?: Input }) {
   useLang();

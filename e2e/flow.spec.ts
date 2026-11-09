@@ -255,3 +255,74 @@ test('German and Chinese mobile interface keeps search and Vacuum example workin
     await noHorizontalScroll(page);
   }
 });
+
+test('saved next steps persist, enquiry links require confirmation and Repairable remains open',async({page})=>{
+  await mockMapServices(page);
+  await page.goto('/'); await selectItem(page,'MacBook','Laptop');
+  await page.getByLabel('What were you planning to do?').selectOption('replace');
+  await page.locator('.route').filter({hasText:'Paid repairer'}).getByRole('button',{name:'Make this my next step'}).click();
+  await expect(page.locator('.next-step')).toContainText('Your next step: Ask a repairer for a diagnosis and quote');
+  await page.getByRole('button',{name:'Find and message a repairer'}).click();
+  await page.getByLabel('Town or place').fill('Bristol'); await page.getByRole('button',{name:'Search places'}).click();
+  await page.getByRole('button',{name:'Ask about this repair'}).first().click();
+  const email=page.getByRole('link',{name:'Email',exact:true});
+  // Avoid launching the host mail app; still run the actual React click handler.
+  await email.evaluate(a=>a.addEventListener('click',e=>e.preventDefault()));
+  await email.click(); await expect(page.locator('.enquiry')).toContainText('Enquiry sent?');
+  await page.locator('.enquiry').getByRole('button',{name:'Not yet',exact:true}).click();
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('fixodds-jobs-v1')!)[0].stage)).toBe('Planned');
+  await email.click(); await page.locator('.enquiry').getByRole('button',{name:'Yes, I sent it'}).click();
+  await page.locator('.next-step').getByRole('link',{name:'Open tracker'}).click();
+  await expect(page.locator('.stepper [aria-current="step"]')).toContainText('Enquiry sent');
+  await expect(page.getByLabel('What were you planning to do?')).toHaveValue('replace');
+  await page.getByRole('button',{name:'Record the outcome'}).click();
+  await page.getByRole('combobox',{name:'Outcome',exact:true}).selectOption('Repairable');
+  await page.getByRole('button',{name:'Save outcome'}).click();
+  await expect(page.locator('.job')).toContainText('Order or ask about the part');
+  await expect(page.locator('.stepper [aria-current="step"]')).toContainText('Waiting for parts');
+  await expect(page.locator('.log-totals strong').first()).toHaveText('0');
+  await page.reload(); await expect(page.locator('.job')).toContainText('Order or ask about the part');
+  await page.getByRole('button',{name:'Record the outcome'}).click();
+  await page.getByLabel('Repair date',{exact:true}).fill('2026-01-01');
+  await page.getByLabel('Did this postpone or cancel buying a new one?').selectOption('yes');
+  await page.getByRole('button',{name:'Save outcome'}).click();
+  await expect(page.locator('.job')).toHaveCount(0);
+  await page.getByLabel('Still working?').selectOption('yes');
+  await expect(page.locator('.log-totals strong').nth(1)).toHaveText('1');
+  await expect(page.locator('.log-totals strong').nth(2)).toHaveText('1');
+  const download=page.waitForEvent('download'); await page.getByRole('button',{name:'Export pilot CSV'}).click();
+  const csv=readFileSync((await (await download).path())!,'utf8');
+  expect(csv).toContain('purchase_postponed,still_working,checked_on'); expect(csv).toContain('"replace","Fixed","yes","yes"');
+  await page.reload(); await expect(page.locator('.log-list')).toContainText('Still working: Yes');
+});
+
+test('event warnings, booking priority and unknown-item saved appointments',async({page})=>{
+  await mockMapServices(page);
+  const soon=new Date(Date.now()+3*86400000).toISOString();
+  await page.route('**/events.json',r=>r.fulfill({json:{built:'2026-11-04',events:[[9,soon,'','Europe/London','FULL — cancelled repair cafe','Hall',51.46,-2.59,'Test Repair Cafe',0,'United Kingdom','Booking required']]}}));
+  await page.goto('/#/events');
+  await expect(page.locator('.event-status')).toHaveText(['FULL','Cancelled','Booking required']);
+  await expect(page.locator('.event-list .primary')).toHaveText('Details and booking');
+  await expect(page.getByRole('button',{name:'Add anyway'})).toBeVisible();
+  await expect(page.getByText(/Events snapshot updated/)).toBeVisible();
+  await page.getByRole('button',{name:'Make this my next step'}).click();
+  await page.getByRole('link',{name:'Open tracker'}).click();
+  await expect(page.locator('.job')).toContainText('Unknown item');
+  await expect(page.getByLabel('Appointment')).not.toHaveValue('');
+  await expect(page.locator('.stepper [aria-current="step"]')).toContainText('Planned');
+  await page.reload(); await expect(page.locator('.job')).toContainText('Test Repair Cafe');
+  await expect(page.locator('.job').getByRole('link',{name:'Details and booking'})).toHaveAttribute('href','https://restarters.net/party/view/9');
+});
+
+test('saved cafe step uses the current item and completing the step does not report a fixed repair',async({page})=>{
+  await mockMapServices(page); await page.goto('/'); await selectItem(page,'MacBook','Laptop');
+  await page.getByRole('link',{name:'Repair events',exact:true}).click();
+  await page.locator('.event-list li').first().getByRole('button',{name:'Make this my next step'}).click();
+  await page.getByRole('link',{name:'Check',exact:true}).click();
+  await expect(page.locator('.next-step')).toContainText('Your next step: Test Repair Cafe,');
+  await page.locator('.next-step').getByRole('button',{name:'Mark step done'}).click();
+  await expect(page.locator('.next-step')).toContainText('Step marked done.');
+  await page.locator('.next-step').getByRole('link',{name:'Open tracker'}).click();
+  await expect(page.locator('.job')).toContainText('Laptop');
+  await expect(page.locator('.log-totals strong').first()).toHaveText('0');
+});

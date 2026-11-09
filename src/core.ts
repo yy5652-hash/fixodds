@@ -157,7 +157,18 @@ export function decodeTicket(hash: string): { input: Input; includesProblem: boo
     return payload.v === 1 && input ? { input, includesProblem: payload.includesProblem === true } : null;
   } catch { return null; }
 }
-export type LogEntry = { id: string; date: string; input: Input; status: Status; warranty?: string; where?: string };
+export const intentions = ['replace', 'discard', 'repair', 'undecided'] as const;
+export type Intention = typeof intentions[number];
+export type Answer = 'yes' | 'no' | 'not sure';
+export type Evidence = { intention?: Intention; purchasePostponed?: Answer; stillWorking?: Answer; checkedOn?: string };
+const answer = (v: unknown): v is Answer => v === 'yes' || v === 'no' || v === 'not sure';
+const dateOnly = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+function evidence(x: Evidence): Evidence {
+  return { ...(intentions.includes(x.intention!) ? { intention: x.intention } : {}), ...(answer(x.purchasePostponed) ? { purchasePostponed: x.purchasePostponed } : {}), ...(answer(x.stillWorking) ? { stillWorking: x.stillWorking } : {}), ...(dateOnly(x.checkedOn) ? { checkedOn: x.checkedOn } : {}) };
+}
+export type Route = 'diy' | 'cafe' | 'shop';
+export type LogEntry = Evidence & { id: string; date: string; input: Input; status: Status; warranty?: string; where?: string; route?: Route };
+const validRoute = (v: unknown): v is Route => v === 'diy' || v === 'cafe' || v === 'shop';
 export function readLog(): { entries: LogEntry[]; error: string } {
   try {
     const raw = localStorage.getItem('fixodds-log-v1');
@@ -167,25 +178,55 @@ export function readLog(): { entries: LogEntry[]; error: string } {
     const entries = parsed.flatMap((r: unknown) => {
       if (!r || typeof r !== 'object') return [];
       const x = r as LogEntry;
-      const input = cleanInput(x.input);
-      return input && typeof x.id === 'string' && typeof x.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.date) && statuses.includes(x.status) ? [{ id: x.id, date: x.date, status: x.status, input, ...(typeof x.warranty === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.warranty) ? { warranty: x.warranty } : {}), ...(typeof x.where === 'string' && x.where ? { where: x.where.slice(0, 120) } : {}) }] : [];
+      const input = cleanSavedInput(x.input);
+      return input && typeof x.id === 'string' && typeof x.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.date) && statuses.includes(x.status) ? [{ id: x.id, date: x.date, status: x.status, input, ...evidence(x), ...(validRoute(x.route) ? { route: x.route } : {}), ...(typeof x.warranty === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.warranty) ? { warranty: x.warranty } : {}), ...(typeof x.where === 'string' && x.where ? { where: x.where.slice(0, 120) } : {}) }] : [];
     });
     return { entries, error: entries.length !== parsed.length ? 'Some damaged entries could not be read. Export the readable records before changing this log.' : '' };
   } catch { return { entries: [], error: 'This browser could not read your repair log. Storage may be blocked or damaged. New entries will stay in this tab; export CSV before leaving.' }; }
 }
-// Repairs in progress: planned, booked or with a repairer. Finishing one moves it into the log.
-export const stages = ['Planned', 'Booked', 'With the repairer'] as const;
-export type Stage = typeof stages[number];
-export type Job = { id: string; created: string; input: Input; stage: Stage; where: string; appointment: string };
+// Pending enquiries are explicit: opening a messaging app does not establish that anything was sent.
+export const stages = ['Planned', 'Enquiry sent', 'Booked', 'With the repairer', 'Waiting for parts', 'Done'] as const;
+export type Stage = typeof stages[number] | 'Enquiry sent?';
+export type Job = Evidence & { id: string; created: string; input: Input; stage: Stage; where: string; appointment: string; route?: Route; next?: string; stepDone?: boolean; eventId?: number; eventLink?: string; eventStart?: string; beforeEnquiry?: Stage };
+const validStage = (v: unknown): v is Stage => v === 'Enquiry sent?' || stages.includes(v as typeof stages[number]);
+export const sameItem = (a: Input, b: Input) => a.category === b.category && ['brand', 'deviceType', 'modelNumber'].every(k => normalize(a[k as keyof Input] as string || '') === normalize(b[k as keyof Input] as string || ''));
+function cleanSavedInput(value: Input): Input | null {
+  const unknown = value?.category === '', input=cleanInput(unknown ? {...value,category:'Misc'} : value);
+  return input && unknown ? {...input,category:''} : input;
+}
 export function readJobs(): Job[] {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem('fixodds-jobs-v1') || '[]');
     if (!Array.isArray(parsed)) return [];
     return parsed.flatMap((r: unknown) => {
-      const x = r as Job; const input = r && typeof r === 'object' ? cleanInput(x.input) : null;
-      return input && typeof x.id === 'string' && stages.includes(x.stage) && typeof x.created === 'string' ? [{ id: x.id, created: x.created, input, stage: x.stage, where: typeof x.where === 'string' ? x.where.slice(0, 120) : '', appointment: typeof x.appointment === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(x.appointment) ? x.appointment : '' }] : [];
+      if (!r || typeof r !== 'object') return [];
+      const x = r as Job, input = cleanSavedInput(x.input);
+      return input && typeof x.id === 'string' && validStage(x.stage) && typeof x.created === 'string' ? [{ id: x.id, created: x.created, input, stage: x.stage, where: typeof x.where === 'string' ? x.where.slice(0, 120) : '', appointment: typeof x.appointment === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(x.appointment) ? x.appointment : '', ...evidence(x), ...(validRoute(x.route) ? { route: x.route } : {}), ...(typeof x.next === 'string' ? { next: x.next.slice(0, 500) } : {}), ...(x.stepDone === true ? { stepDone: true } : {}), ...(Number.isInteger(x.eventId) ? { eventId: x.eventId } : {}), ...(typeof x.eventLink === 'string' && /^https:\/\/restarters\.net\/party\/view\/\d+$/.test(x.eventLink) ? { eventLink: x.eventLink } : {}), ...(typeof x.eventStart === 'string' && Number.isFinite(Date.parse(x.eventStart)) ? { eventStart: x.eventStart } : {}), ...(validStage(x.beforeEnquiry) && x.beforeEnquiry !== 'Enquiry sent?' ? { beforeEnquiry: x.beforeEnquiry } : {}) }] : [];
     });
   } catch { return []; }
+}
+export type SavedStep = { route: Route; guideTitle?: string; intention?: Intention; event?: { id: number; group: string; date: string; start: string; link: string } };
+export function saveStep(jobs: Job[], input: Input, step: SavedStep, id: string = crypto.randomUUID(), created = new Date().toISOString().slice(0, 10)): Job[] {
+  const old = jobs.find(j => j.stage !== 'Done' && sameItem(j.input, input));
+  const event = step.route === 'cafe' ? step.event : undefined;
+  const changed = !!old?.route && (old.route !== step.route || !!event && old.eventId !== event.id);
+  const next = step.route === 'diy' ? step.guideTitle ? `Follow the guide: ${step.guideTitle}` : 'Find a matching guide' : step.route === 'cafe' ? event ? `${event.group}, ${event.date}` : 'Find a repair event' : 'Ask a repairer for a diagnosis and quote';
+  const local = event ? new Date(event.start) : undefined;
+  const appointment = local ? `${local.getFullYear()}-${String(local.getMonth()+1).padStart(2,'0')}-${String(local.getDate()).padStart(2,'0')}T${String(local.getHours()).padStart(2,'0')}:${String(local.getMinutes()).padStart(2,'0')}` : '';
+  const job: Job = { ...old, id: old?.id || id, created: old?.created || created, input, stage: changed ? 'Planned' : old?.stage || 'Planned', beforeEnquiry: changed ? undefined : old?.beforeEnquiry, where: event?.group || (changed ? '' : old?.where || ''), route: step.route, next, stepDone: false, appointment: event ? appointment : changed ? '' : old?.appointment || '', eventId: event?.id, eventLink: event?.link, eventStart: event?.start, ...(step.intention ? { intention: step.intention } : {}) };
+  return old ? jobs.map(j => j.id === old.id ? job : j) : [job, ...jobs];
+}
+export function openEnquiry(job: Job, where: string): Job { return { ...job, where, stage: 'Enquiry sent?', beforeEnquiry: job.stage === 'Enquiry sent?' ? job.beforeEnquiry : job.stage }; }
+export function confirmEnquiry(job: Job, sent: boolean): Job {
+  if (job.stage !== 'Enquiry sent?') return job;
+  const prior = job.beforeEnquiry || 'Planned';
+  return { ...job, stage: sent ? stages.indexOf(prior as typeof stages[number]) > 1 ? prior : 'Enquiry sent' : prior, beforeEnquiry: undefined, stepDone: sent || job.stepDone };
+}
+export function outcomeJob(job: Job, status: Status): Job {
+  return { ...job, stage: status === 'Repairable' ? 'Waiting for parts' : 'Done', next: status === 'Repairable' ? 'Order or ask about the part' : '', stepDone: false, beforeEnquiry: undefined };
+}
+export function followupDue(entry: LogEntry, now = new Date()): boolean {
+  return entry.status === 'Fixed' && !entry.checkedOn && now.getTime() >= Date.parse(entry.date + 'T00:00:00Z') + 30 * 86400000;
 }
 export function saveJobs(jobs: Job[]): string {
   try { localStorage.setItem('fixodds-jobs-v1', JSON.stringify(jobs)); return ''; }
@@ -199,11 +240,13 @@ export function logTotals(entries: LogEntry[]) {
   return entries.reduce((total, entry) => {
     if (entry.status !== 'Fixed') return total;
     total.fixed++;
+    if (entry.purchasePostponed === 'yes') total.postponed++;
+    if (entry.stillWorking === 'yes') total.inUse++;
     const factor = factorFor(entry.input);
     if (factor) { const saved = impact(1, factor); total.carbon += saved.carbon; total.waste += saved.waste; }
     else total.unquantified++;
     return total;
-  }, { carbon: 0, waste: 0, fixed: 0, unquantified: 0 });
+  }, { carbon: 0, waste: 0, fixed: 0, postponed: 0, inUse: 0, unquantified: 0 });
 }
 export const ordsColumns = ['id', 'data_provider', 'country', 'partner_product_category', 'product_category', 'product_category_id', 'brand', 'year_of_manufacture', 'product_age', 'repair_status', 'repair_barrier_if_end_of_life', 'group_identifier', 'event_date', 'problem'];
 function csvCell(value: string) {
@@ -213,4 +256,14 @@ function csvCell(value: string) {
 }
 export function exportOrds(entries: LogEntry[]): string {
   return [ordsColumns.join(','), ...entries.map(e => [e.id, 'FixOdds personal log', '', '', e.input.category, stats[e.input.category]?.ordsId || '', e.input.brand, '', e.input.years || '', e.status, '', '', e.date, [e.input.problem, e.input.deviceType && `${t('Device type')}: ${e.input.deviceType}`, e.input.modelNumber && `${t('Model number')}: ${e.input.modelNumber}`].filter(Boolean).join('\n')].map(csvCell).join(','))].join('\r\n') + '\r\n';
+}
+
+export const pilotColumns = ['id', 'created', 'outcome_date', 'category', 'device_type', 'brand', 'model_number', 'problem', 'route', 'stage', 'next_step', 'intention', 'outcome', 'purchase_postponed', 'still_working', 'checked_on'];
+export function exportPilot(entries: LogEntry[], jobs: Job[] = []): string {
+  const rows = [...entries.map(e => [e.id, '', e.date, e.input.category, e.input.deviceType || '', e.input.brand, e.input.modelNumber || '', e.input.problem, e.route || '', 'Done', '', e.intention || '', e.status, e.purchasePostponed || '', e.stillWorking || '', e.checkedOn || '']), ...jobs.map(j => [j.id, j.created, '', j.input.category, j.input.deviceType || '', j.input.brand, j.input.modelNumber || '', j.input.problem, j.route || '', j.stage, j.next || '', j.intention || '', '', '', '', ''])];
+  return [pilotColumns.join(','), ...rows.map(row => row.map(csvCell).join(','))].join('\r\n') + '\r\n';
+}
+export function endOfLifeLinks(input: Input, area = '') {
+  const model = [input.brand, input.deviceType || englishLabel(input.category), input.modelNumber, 'parts'].filter(Boolean).join(' ');
+  return { parts: `https://www.ifixit.com/Search?query=${encodeURIComponent(model)}`, recycling: /\b(?:UK|United Kingdom|Great Britain|England|Scotland|Wales|Northern Ireland)\b/i.test(area) ? 'https://www.recyclenow.com/recycling-locator' : `https://www.google.com/search?q=${encodeURIComponent(`e-waste recycling near ${area || 'me'}`)}` };
 }

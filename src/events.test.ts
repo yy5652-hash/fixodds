@@ -22,3 +22,14 @@ test('calendar file escapes text, folds long lines and adds a reminder', () => {
   expect(text.split('\r\n').every(line => new TextEncoder().encode(line).length <= 75)).toBe(true);
   expect(ics([{ uid: 'b', start: '2027-03-01', allDay: true, title: 'Warranty ends' }])).toContain('DTSTART;VALUE=DATE:20270301');
 });
+
+test('event statuses parse title and description with whole words and cancellation spelling variants', async () => {
+  const { eventStatuses, readRows } = await import('./events');
+  expect(eventStatuses({ title: 'FULL — Cafe (cancelled)', description: '<p>Booking is required</p>' })).toEqual(['FULL', 'Cancelled', 'Booking required']);
+  expect(eventStatuses({ title: 'Fully booked', description: 'Canceled. Registration essential.' })).toEqual(['FULL', 'Cancelled', 'Booking required']);
+  expect(eventStatuses({ title: 'Sold-out event', description: 'Please book in advance.' })).toEqual(['FULL', 'Booking required']);
+  expect(eventStatuses({ title: 'Wonderful cafe', description: 'Not full. Not cancelled. No booking required. Registration is not required.' })).toEqual([]);
+  const row = [1, '2030-01-01', '', '', 'Cafe', '', null, null, 'G', 0, 'UK'] as const;
+  expect(readRows({ built: '', events: [[...row]] })[0].description).toBeUndefined();
+  expect(eventStatuses(readRows({ built: '', events: [[...row, 'Booking required']] })[0])).toEqual(['Booking required']);
+});

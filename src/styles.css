@@ -115,7 +115,7 @@
 .job-list { list-style:none; padding:0; display:grid; gap:12px; }
 .job { border:1px solid var(--line); border-radius:14px; padding:16px; background:var(--card); display:grid; gap:12px; }
 .job-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
-.stepper { list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.stepper { list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; }
 .stepper li { display:grid; justify-items:center; gap:4px; font-size:11px; color:var(--muted); text-align:center; }
 .stepper li span { width:24px; height:24px; border-radius:50%; display:grid; place-items:center; border:1.5px solid var(--line); font-size:11px; font-weight:650; }
 .stepper li.is-done span { background:var(--green); border-color:var(--green); color:#fff; }
@@ -341,3 +341,13 @@ thead { background:var(--bg); }
 .language-label { margin-left:0; }
 @media(min-width:900px) { .site-header { gap:18px; }.site-header nav { gap:16px; }.theme-label { flex-shrink:0; } }
 @media(min-width:900px) and (max-width:1199px) { .site-header { flex-wrap:wrap; }.site-header nav { order:3; width:100%; margin:0; }.theme-label { margin-left:auto; }.language-label { margin-left:0; } }
+
+.next-step { padding:14px 18px; margin-bottom:14px; }
+.next-step>p { margin:0; font-weight:600; overflow-wrap:anywhere; }
+.routes>label { max-width:420px; margin:14px 0; }
+.route .secondary { align-self:end; }
+.event-status { min-height:24px; padding:2px 8px; font-weight:700; }
+.log-list>li>div { min-width:0; flex:1; }
+.log-list label { margin-top:12px; }
+.stepper li { overflow-wrap:anywhere; }
+@media(max-width:599px) { .stepper { grid-template-columns:repeat(3,minmax(0,1fr)); row-gap:12px; } }
