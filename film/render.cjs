@@ -1,6 +1,6 @@
 // Renders the FixOdds film frame by frame: the real built site runs in an iframe on a stage page,
 // page time is stepped by hand, so slow camera moves stay smooth and text stays sharp at any zoom.
-// node film/render.cjs <landscape|portrait> <out.mp4> [--fps N] [--from S --to S]
+// node film/render.cjs <landscape|portrait> <out.mp4> [--fps N] [--scale N] [--from S --to S]
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const { spawn } = require('child_process');
 const ROOT = path.resolve(__dirname, '..');
@@ -8,7 +8,8 @@ const { chromium } = require(ROOT + '/node_modules/@playwright/test');
 const FF = process.env.FF || path.resolve(ROOT, '../revoice-2026-10-24/bin/ffmpeg');
 const mode = process.argv[2] || 'landscape', out = process.argv[3] || 'film/work/test.mp4';
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? +process.argv[i + 1] : d; };
-const FPS = arg('fps', 30), PORTRAIT = mode === 'portrait';
+const FPS = arg('fps', 30), SCALE = arg('scale', 1), PORTRAIT = mode === 'portrait';
+if (!Number.isFinite(SCALE) || SCALE <= 0) throw Error('--scale must be a positive number');
 const [W, H] = PORTRAIT ? [1080, 1920] : [1920, 1080];
 const [AW, AH] = PORTRAIT ? [480, 690] : [1440, 810];
 
@@ -17,12 +18,21 @@ const { T, lines, caps, END } = makePlan(mode);
 fs.writeFileSync(`${__dirname}/work/timeline_${mode}.json`, JSON.stringify({ scenes: T, lines, end: END }, null, 1));
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.png': 'image/png', '.webmanifest': 'application/json' };
+const footageDir = id => {
+  const hires = path.join(__dirname, 'footage', 'graded_4k', id);
+  return !PORTRAIT && SCALE > 1 && fs.existsSync(hires)
+    ? hires : path.join(__dirname, 'footage', PORTRAIT ? 'graded_v' : 'graded', id);
+};
 const server = http.createServer((q, s) => {
   const u = decodeURIComponent(q.url.split('?')[0]); let f;
   if (u === '/stage.html') f = __dirname + '/stage.html';
   else if (u.startsWith('/footage/')) {
     const candidate = path.resolve(__dirname, '.' + u);
-    if (candidate.startsWith(path.resolve(__dirname, 'footage') + path.sep)) f = candidate;
+    if (candidate.startsWith(path.resolve(__dirname, 'footage') + path.sep)) {
+      f = candidate;
+      const graded = path.relative(path.join(__dirname, 'footage', 'graded'), candidate).split(path.sep);
+      if (graded.length === 2 && graded[0] !== '..') f = path.join(footageDir(graded[0]), graded[1]);
+    }
   }
   else if (u.startsWith('/fonts/')) f = ROOT + '/node_modules/@fontsource-variable/inter/files/' + path.basename(u);
   else if (u.startsWith('/app/')) f = ROOT + '/dist/' + (u.slice(5) || 'index.html');
@@ -34,7 +44,7 @@ const server = http.createServer((q, s) => {
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const port = server.address().port;
   const browser = await chromium.launch({ args: ['--font-render-hinting=none', '--disable-lcd-text'] });
-  const ctx = await browser.newContext({ viewport: { width: W, height: H }, colorScheme: 'dark', serviceWorkers: 'block', locale: 'en-GB', acceptDownloads: true,
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: SCALE, colorScheme: 'dark', serviceWorkers: 'block', locale: 'en-GB', acceptDownloads: true,
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36' });
   // Map tiles and the place search are kept on disk, so repeat renders do not hit OpenStreetMap again.
   const cacheDir = __dirname + '/work/netcache'; fs.mkdirSync(cacheDir, { recursive: true });
@@ -49,7 +59,7 @@ const server = http.createServer((q, s) => {
   await page.clock.install({ time: new Date('2026-11-04T11:00:00Z') });
   await page.goto(`http://127.0.0.1:${port}/stage.html`);
   const frameCounts = Object.fromEntries(require('./footage/clips.json').clips.map(c => {
-    const dir = path.join(__dirname, 'footage', PORTRAIT ? 'graded_v' : 'graded', c.id);
+    const dir = footageDir(c.id);
     const count = fs.readdirSync(dir).filter(f => /^\d{4,}\.jpg$/.test(f)).length;
     if (!count) throw Error('No graded footage: ' + c.id);
     return [c.id, count];
@@ -406,7 +416,9 @@ const server = http.createServer((q, s) => {
   // ---- Frame loop ----
   const stepAnimations = dt => { for (const a of document.getAnimations()) { const end = a.effect?.getComputedTiming().endTime ?? 0; if (a.playState === 'finished') continue; const now = (a.currentTime ?? 0) + dt; a.pause(); if (now >= end) a.finish(); else a.currentTime = now; } };
   const from = arg('from', 0), to = Math.min(arg('to', END), END);
-  const ff = spawn(FF, ['-y', '-v', 'error', '-f', 'image2pipe', '-c:v', 'mjpeg', '-framerate', String(FPS), '-i', '-', '-c:v', 'libx264', '-preset', 'medium', '-crf', '15', '-pix_fmt', 'yuv420p', '-r', String(FPS), path.resolve(out)], { stdio: ['pipe', 'inherit', 'inherit'] });
+  const encoder = SCALE > 1 ? ['-crf', '12', '-preset', 'slow', '-tune', 'film', '-pix_fmt', 'yuv420p']
+    : ['-preset', 'medium', '-crf', '15', '-pix_fmt', 'yuv420p'];
+  const ff = spawn(FF, ['-y', '-v', 'error', '-f', 'image2pipe', '-c:v', 'mjpeg', '-framerate', String(FPS), '-i', '-', '-c:v', 'libx264', ...encoder, '-r', String(FPS), path.resolve(out)], { stdio: ['pipe', 'inherit', 'inherit'] });
   const total = Math.ceil(END * FPS), dtMs = 1000 / FPS; let qi = 0, lastLog = Date.now();
   const t0 = Date.now();
   for (let f = 0; f < total; f++) {
@@ -418,7 +430,7 @@ const server = http.createServer((q, s) => {
     await page.clock.runFor(dtMs);
     await Promise.all([page.evaluate(stepAnimations, dtMs), frame.evaluate(stepAnimations, dtMs)]);
     if (t < from || t > to) continue;
-    const { data } = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 96, optimizeForSpeed: true });
+    const { data } = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: SCALE > 1 ? 98 : 96, optimizeForSpeed: true, ...(SCALE > 1 ? { clip: { x: 0, y: 0, width: W, height: H, scale: SCALE } } : {}) });  // clip.scale renders the page at device pixels
     if (!ff.stdin.write(Buffer.from(data, 'base64'))) await new Promise(r => ff.stdin.once('drain', r));
     if (Date.now() - lastLog > 30000) { lastLog = Date.now(); console.log(`${t.toFixed(1)}/${END.toFixed(1)} s, ${((Date.now() - t0) / 1000).toFixed(0)} s elapsed`); }
   }
