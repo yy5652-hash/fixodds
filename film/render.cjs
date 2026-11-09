@@ -101,67 +101,84 @@ const server = http.createServer((q, s) => {
   }
   const count = (from, to, dur = 1.8, delay = 0) => `<span data-from="${from}" data-to="${to}" data-dur="${dur}" data-delay="${delay}">${from}</span>`;
 
-  // ---- Title cards shared by both versions ----
+  // ---- v7: one five-year-old laptop, from broken to fixed ----
   const tl = l => lines[l].t, te = l => lines[l].t + lines[l].d;
-  sceneCard({ t0: T.s01 + .2, t1: tl('s01') + lines.s01.d * .52, html: `<div class="huge">Broken.</div>`, fade: .22 });
-  sceneCard({ t0: tl('s01') + lines.s01.d * .54, t1: T.s01_end - .05, html: `<div class="huge">Bin it?</div>`, fade: .22 });
-  if (T.s02 !== undefined) sceneCard({ t0: T.s02 + .1, t1: T.s02_end - .05, html: `<div class="big" style="max-width:15em">Nobody tells you<br>the odds.</div>` });
-  sceneCard({ t0: T.s03 + .05, t1: tl('s03b') - .1, html: `<div class="huge">${count(0, 416282, Math.min(2.6, lines.s03a.d * .5))}</div><div class="label">${PORTRAIT ? 'real repair attempts' : 'real repair attempts, logged by repair groups'}</div>` });
-  sceneCard({ t0: tl('s03b') - .05, t1: T.s03_end - .05, html: `<div id="brand">FixOdds<span class="acc">.</span></div><div class="label">The odds, before you decide.</div>` });
-  // Held-out proof
-  if (lines.s06a) sceneCard({ t0: T.s06 + .05, t1: tl('s06b') - .08, html: `<div class="big">${count(0, 41047, 1.4)}</div><div class="label">later repairs, from groups it never saw</div><div class="small">Out of time, group-disjoint held-out test</div>` });
-  sceneCard({ t0: tl('s06b') - .05, t1: tl('s06c') - .05, html: `<div class="huge fix">87.7%</div><div class="label">“Repair first” band: fixed or repairable</div><div class="small">41,047 held-out attempts</div>` });
-  sceneCard({ t0: tl('s06c') - .05, t1: T.s06_end - .05, html: `<div class="row"><div><div class="big fix">87.7%</div><div class="small">Repair first</div></div><div><div class="mid amb">73.5%</div><div class="small">Worth a try</div></div><div><div class="big" style="color:#d8d2c3">60.6%</div><div class="small">Harder repair</div></div></div><div class="small">Fixed or repairable · 41,047 held-out attempts</div>` });
-  // Dataset impact, the high point
-  const s8split = tl('s08a') + lines.s08a.d * .42;
-  sceneCard({ t0: T.s08 + .05, t1: s8split, html: `<div class="huge">${count(150000, 202076, 1.9)}</div><div class="label">recorded fixes</div>` });
-  sceneCard({ t0: s8split, t1: T.s08_end - .05, html: `<div class="${PORTRAIT ? '' : 'row'}"><div><div class="big fix">≈5,400 t</div><div class="label">CO₂e</div></div><div ${PORTRAIT ? 'style="margin-top:6vmin"' : ''} data-in="0.7"><div class="big">≈700 t</div><div class="label">e-waste kept in use</div></div></div><div class="small">Same factors, fixes in categories with a factor. What repair already does, not FixOdds' own impact.</div>` });
-  // End card
-  sceneCard({ t0: T.s12 - .1, t1: 1e9, fade: .5, drift: 0, html: `<div id="brand">FixOdds<span class="acc">.</span></div><div class="mid" style="margin-top:1vmin">Give repair a fair chance.</div><div class="label acc" style="margin-top:4.5vmin">yy5652-hash.github.io/fixodds</div><div class="small" style="margin-top:6vmin">${PORTRAIT ? 'Data: Open Repair Alliance · The Restart Project<br>OpenStreetMap contributors · Guides linked from iFixit<br>Music: Dvořák, Symphony No. 9, Musopen' : 'Data: Open Repair Alliance · The Restart Project · Restarters.net · OpenStreetMap contributors<br>Guides linked from iFixit · Music: Dvořák, Symphony No. 9, Musopen'}</div><div class="small" style="font-size:2vmin;max-width:90%;margin-top:2vmin">Footage: Pexels contributors · Repair Café Nijmegen-Oost (N1) and Repair Café Almelo (AAVISIE), CC BY 3.0, Wikimedia Commons</div>` });
-
-  // New title cards cover navigation; the incoming window floats out of its tilt.
-  const titles = {
-    n09: '<div class="huge">3 ways<br>to fix it.</div>',
-    n10: '<div class="huge">954</div><div class="label">repair events · 13 networks</div>',
-    n11: '<div class="big">Message a repairer.</div><div class="label">Text · WhatsApp · Email</div>',
-    n12: '<div class="huge">5.9<small style="font-size:.48em">/10</small></div><div class="label">vacuums · 34,059 repair attempts</div>',
-    n13: '<div class="big">5 languages.</div><div class="label">English · Nederlands · Deutsch · Français · 中文</div>',
+  const subject = (r, s) => ({ ...fill(r.x + r.w / 2, r.y + r.h / 2, s),
+    y: r.y + r.h / 2 + H * ((PORTRAIT ? .44 : .5) - .43) / s });
+  const floatIn = async (id, target) => {
+    const end = T[id + '_card'] !== undefined ? T[id + '_card'] + 1.1 : T[id] + .3;
+    await st('camSet', { ...target, s: target.s * .9, rx: 6, ry: -8, op: 0 });
+    await st('camTo', end - .1, end + .7, { ...target, op: 1, rx: 0, ry: 0 });
   };
-  for (const [id, html] of Object.entries(titles)) if (T[id + '_card'] !== undefined)
-    sceneCard({ t0: T[id + '_card'], t1: T[id + '_card'] + 1.1, fadeIn: .15, fadeOut: .25,
-      rise: 0, drift: 0, html });
-  // Real footage follows the existing plan; no scene or narration timing changes.
+  const highlight = async (r, t0, t1) => {
+    await st('spot', { t0, t1, x: r.x + r.w / 2, y: r.y + r.h / 2, rx: r.w / 2 + 24, ry: r.h / 2 + 20 });
+    await st('ring', { t0, t1, x: r.x - 6, y: r.y - 5, w: r.w + 12, h: r.h + 10 });
+  };
+  const hideWin = (t0, dur = .3) => at(t0, async () => { await st('curHide'); await st('camTo', t0, t0 + dur, { op: 0 }); });
+  const reveal = async sel => {
+    await frame.evaluate(s => { const e = document.querySelector(s); if (!e) throw Error('no ' + s);
+      window.scrollTo({ top: Math.max(0, e.getBoundingClientRect().top + scrollY - (innerWidth < 900 ? 170 : 210)), behavior: 'instant' }); }, sel);
+    await page.clock.runFor(100);
+    return rect(sel);
+  };
+  const focus = (t, sel, until, scale = PORTRAIT ? 1.95 : 1.85) => at(t, async () => {
+    const r = await reveal(sel); await st('camTo', t, t + .3, { ...subject(r, scale), op: 1, rx: 0, ry: 0 }); await highlight(r, t + .15, until);
+  });
+  const BRISTOL = { lat: 51.454, lon: -2.597, name: 'Bristol, City of Bristol, England, United Kingdom' };
+  const seedArea = () => frame.evaluate(a => { localStorage.setItem('fixodds-area-v1', JSON.stringify(a)); window.dispatchEvent(new Event('fixodds-area')); }, BRISTOL);
+  at(0, async () => {
+    await seedArea(); await st('camSet', { x: AW / 2, y: AH / 2, s: PORTRAIT ? 2 : 1.1, rx: 0, ry: 0, op: 0 });
+    await page.evaluate(() => { document.getElementById('caption').style.bottom = '3vh'; });
+  });
+
+  // Cards stay above the footage and the real UI; only the tracker carries Demo.
+  const hookCut = tl('a1') + lines.a1.d * .52;
+  await sceneCard({ t0: .2, t1: hookCut, fade: .2, html: '<div class="huge">Broken.</div>' });
+  await sceneCard({ t0: hookCut, t1: T.a1_end, fade: .2, html: '<div class="huge">Bin it?</div>' });
+  await sceneCard({ t0: T.a3_card, t1: T.a3_card + 1.1, fadeIn: .12, fadeOut: .15, rise: 0, drift: 0,
+    html: '<div class="big">Next step:<br>repair cafe</div>' });
+  await sceneCard({ t0: tl('a2c'), t1: T.a2_end - .05, cls: 'stamp verdict-stamp', rise: 12,
+    html: '<div class="stampbox"><div class="n">Repair first</div><div class="t">49% fixed · 40% more work or parts</div></div>' });
+  await sceneCard({ t0: tl('a5b'), t1: T.a5_end, cls: 'demo-card', rise: 0, drift: 0, fade: .12,
+    html: '<span class="demo-label">Demo</span>' });
+  await sceneCard({ t0: T.a5_end - (PORTRAIT ? 1.35 : 2), t1: T.a5_end, cls: 'fixed-card', fade: .15,
+    html: '<div class="stampbox"><div class="mid fix">Fixed — still in use</div></div>' });
+  await sceneCard({ t0: T.a6_card, t1: tl('a6b'), html: '<div class="big">1.8 kg<br>kept in use</div><div class="mid fix" style="margin-top:4vmin">≈133 kg CO₂e if fixed</div>' });
+  await sceneCard({ t0: tl('a6b'), t1: T.a6_end, html: '<div class="mid" style="max-width:17em">Before the repair:<br><span class="fix">≈65 kg CO₂e</span>, weighted by the 49% chance of a fix</div><div class="small">Category average · half of fixes assumed to replace a purchase</div>' });
+  if (!PORTRAIT) {
+    await sceneCard({ t0: T.a7_card, t1: tl('a7b'), html: `<div class="big">${count(0, 11130, 1.7)}</div><div class="label">later repairs the model never saw</div>` });
+    await sceneCard({ t0: tl('a7b'), t1: T.a7_end, html: '<div class="big fix">70% fixed<br>+ 18% more work</div><div class="small">‘Repair first’ band · 41,047 test repairs in all</div>' });
+    await sceneCard({ t0: T.a8_card, t1: T.a8_end, html: '<div class="label" style="max-width:24em;margin-bottom:4vmin">Estimated benefit of past repairs in the dataset</div><div class="big fix">≈5,400 t CO₂e</div>' });
+    await sceneCard({ t0: T.a9, t1: T.a9_end, cls: 'language-card', html: '<div class="small">Interface in 5 languages</div>' });
+    await sceneCard({ t0: T.a4_end - 1.35, t1: T.a4_end, cls: 'fixed-card', html: '<div class="stampbox"><div class="mid fix">Message sent</div></div>' });
+  }
+  // qrcode-generator 2.0.4: createSvgTag options verified against its shipped API
+  // and upstream js/README.md; four-module quiet zone, inverted white on dark.
+  const qr = require(ROOT + '/node_modules/qrcode-generator')(0, 'M');
+  qr.addData('https://yy5652-hash.github.io/fixodds/'); qr.make();
+  const qrSvg = qr.createSvgTag({ cellSize: 1, margin: 4, scalable: true })
+    .replace('fill="white"', 'fill="#12110e"').replace('fill="black"', 'fill="#ffffff"');
+  await sceneCard({ t0: T.a10, t1: 1e9, cls: 'end-card', fade: .3, rise: 0, drift: 0,
+    html: `<div id="brand">FixOdds<span class="acc">.</span></div><div class="mid end-tagline">Give repair a fair chance.</div>
+      <div class="end-url acc">yy5652-hash<span class="url-host">.github.io/fixodds/</span></div>
+      <div class="end-qr">${qrSvg}</div><div class="end-credits">
+      <div>Data: Open Repair Alliance · The Restart Project · Restarters.net · OpenStreetMap contributors · iFixit</div>
+      <div class="footage-credit">Footage: Pexels contributors · Repair Café Nijmegen-Oost (N1) and Repair Café Almelo (AAVISIE), CC BY 3.0, Wikimedia Commons</div>
+      <div>Music: Dvořák, Symphony No. 9, Musopen</div></div>` });
+
   const footage = [];
   const reel = (id, t0, t1, dim, extra = {}) => footage.push({ id, t0, t1, dim, ...extra });
-  reel('hook', T.s01, T.s01_end, .45);
+  reel('hook', T.a1, hookCut, .45); reel('ewaste', hookCut, T.a1_end, .45);
+  reel('rc_hall', T.a3, T.a3_card + 1.1, .55, { fadeOut: .12 });
+  const repairCut = tl('a5a') + lines.a5a.d * .55;
+  reel('rc_probe', T.a5, repairCut, 0); reel('rc_lamp', repairCut, tl('a5b'), 0, { fadeOut: .12 });
+  reel('kettle', T.a6, T.a6_end, .7);
   if (!PORTRAIT) {
-    const split = T.s02 + (T.s02_end - T.s02) * .6;
-    reel('ewaste', T.s02, split, .5);
-    reel('factory', split, T.s02_end, .5);
+    reel('rc_bench', T.a7, T.a7_end, .6);
+    const crowdCut = T.a8 + (T.a8_end - T.a8) * .5;
+    reel('rc_crowd', T.a8, crowdCut, .55); reel('rc_hall2', crowdCut, T.a8_end, .55);
   }
-  const signEnd = T.s03 + 1, repairEnd = tl('s03b') - .05;
-  reel('rc_sign', T.s03, signEnd, .5);
-  const repairSpan = (repairEnd - signEnd) / 3;
-  ['rc_hall', 'rc_probe', 'rc_bench'].forEach((id, i) =>
-    reel(id, signEnd + i * repairSpan, signEnd + (i + 1) * repairSpan, .5));
-  reel('rc_crowd', repairEnd, T.s03_end + (T.s04 !== undefined ? 1.2 : 0), .7, { fadeOut: .6 });  // covers the page coming in
-  if (!PORTRAIT) {
-    reel('ewaste', tl('s07b'), tl('s07c'), .6);
-    sceneCard({ t0: tl('s07b'), t1: tl('s07c'), html: '<div class="huge">≈1.8 kg</div><div class="label">e-waste kept in use</div>' });
-  }
-  reel('rc_lamp', T.s08, s8split, .55);
-  reel('rc_device', s8split, T.s08_end, .55);
-  for (const [scene, id, dim] of [['n09', 'diy', .55], ['n10', 'city', .55],
-    ['n11', 'phone', .55], ['n12', 'vacuum', .5], ['n13', 'rc_hall2', .6]]) {
-    if (T[scene + '_card'] !== undefined)
-      reel(id, T[scene + '_card'], T[scene + '_card'] + 1.1, dim, { fadeIn: .15, fadeOut: .25 });
-  }
-  if (!PORTRAIT) for (const [fraction, id] of [[.18, 'diy'], [.5, 'rc_bench'], [.76, 'shop']]) {
-    const t0 = tl('n09a') + lines.n09a.d * fraction;
-    reel(id, t0, t0 + 1.2, 0, { fadeIn: .08, fadeOut: .08 });
-  }
-  reel('kettle', T.s12 - .1, END, .65, { fadeOut: 0 });
-  // Adjacent shots overlap briefly for a two-image crossfade; title/UI boundaries stay fixed.
+  reel('kettle', T.a10, END, .65, { fadeOut: 0 });
   footage.sort((a, b) => a.t0 - b.t0);
   for (let i = 0; i < footage.length - 1; i++) {
     const a = footage[i], b = footage[i + 1];
@@ -169,248 +186,143 @@ const server = http.createServer((q, s) => {
   }
   for (const clip of footage) await st('clip', clip);
 
-  // Centre the subject at 43% height, keeping the subtitle band clear.
-  const subject = (r, s) => ({ ...fill(r.x + r.w / 2, r.y + r.h / 2, s),
-    y: r.y + r.h / 2 + H * ((PORTRAIT ? .44 : .5) - .43) / s });
-  const floatIn = async (id, target) => {
-    const end = T[id + '_card'] + 1.1;
-    // The page stays hidden under the title card, then fades in tilted and settles (one tween, held until it starts).
-    await st('camSet', { ...target, s: target.s * .9, rx: 6, ry: -8, op: 0 });
-    await st('camTo', end - .1, end + .9, { ...target, op: 1, rx: 0, ry: 0 });
-  };
-  const highlight = async (r, t0, t1) => {
-    await st('spot', { t0, t1, x: r.x + r.w / 2, y: r.y + r.h / 2, rx: r.w / 2 + 24, ry: r.h / 2 + 20 });
-    await st('ring', { t0, t1, x: r.x - 6, y: r.y - 5, w: r.w + 12, h: r.h + 10 });
-  };
+  // A2: visible form work, then the exact same live result. Mobile uses its drawer.
+  const a = T.a2, pace = PORTRAIT ? 1 : 1.55, q = n => a + n * pace;
+  at(a, async () => { const r = await reveal('.item-search input'); await floatIn('a2', subject(r, 1.85)); });
+  focus(q(.25), '.item-search input', q(.95));
+  pointClick(q(.3), .12, () => rect('.item-search input'), () => clickSel('.item-search input'));
+  typeText(q(.44), 'Laptop', .035 * pace);
+  // Match the display label rather than assuming cmdk's generated data-value.
+  const laptopRect = () => frame.evaluate(() => {
+    const el = [...document.querySelectorAll('[cmdk-item]')].find(e => e.textContent.trim().startsWith('Laptop'));
+    if (!el) throw Error('No Laptop option'); const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height };
+  });
+  pointClick(q(.7), .14, laptopRect, () => clickText('[cmdk-item]', 'Laptop'));
+  pointClick(q(.99), .14, () => textRect('.check-form .accordion button', 'Sharpen the odds'), async () => {
+    await clickText('.check-form .accordion button', 'Sharpen the odds'); await page.clock.runFor(350);
+  });
+  const age = '.check-form input[type="number"]';
+  focus(q(1.19), age, q(1.75));
+  pointClick(q(1.28), .12, () => rect(age), () => clickSel(age));
+  typeText(q(1.43), '5', .04);
+  at(q(1.71), async () => {
+    await clickText('.check-form .accordion button', 'Sharpen the odds'); await page.clock.runFor(250);
+  });
+  focus(q(1.78), '.check-form .symptoms', q(2.28));
+  pointClick(q(1.9), .14, () => textRect('button.chip', 'Battery or charging'), () => clickText('button.chip', 'Battery or charging'));
+  focus(q(2.3), '.check-form textarea', q(4.1));
+  pointClick(q(2.38), .12, () => rect('.check-form textarea'), () => clickSel('.check-form textarea'));
+  const typedDescription = typeText(q(2.56), 'The battery will not charge', .045 * pace);
+  if (typedDescription >= tl('a2b') - .4) throw Error('Form typing overruns the verdict');
+  at(tl('a2b') - .35, async () => {
+    await st('curHide'); await frame.evaluate(() => document.activeElement?.blur?.());
+    if (PORTRAIT) { await clickSel('.mobile-result'); await page.clock.runFor(450); }
+    else await reveal('.result-card');
+    const r = await rect(PORTRAIT ? '.drawer-content .verdict' : '.result-card .verdict');
+    await st('camTo', tl('a2b') - .35, tl('a2b') + .15, subject({ ...r, h: r.h + 160 }, PORTRAIT ? 2.1 : 1.85));
+    await highlight(r, tl('a2b'), tl('a2c'));
+  });
 
-  // Apply the lower caption band only to the new scenes; preserve the old/end-card look.
-  at(T.n09_card, () => page.evaluate(() => { document.getElementById('caption').style.bottom = '3vh'; }));
-  at(T.s12 - .1, () => page.evaluate(() => { document.getElementById('caption').style.bottom = ''; }));
-
-  const BRISTOL = { lat: 51.454, lon: -2.597, name: 'Bristol, City of Bristol, England, United Kingdom' };
-  const seedArea = () => frame.evaluate(a => { localStorage.setItem('fixodds-area-v1', JSON.stringify(a)); window.dispatchEvent(new Event('fixodds-area')); }, BRISTOL);
-  // The saved town lets the cafe route show the next event near Bristol.
-  at(T.s04 !== undefined ? T.s04 : T.s03 + .1, seedArea);
-  // ---- Interface direction ----
-  const hideWin = (t0, dur = .4) => at(t0, () => st('camTo', t0, t0 + dur, { op: 0 }));
-  if (!PORTRAIT) {
-    // S04 form: float in, then work the form with the result in view.
-    at(0, () => st('camSet', { x: 720, y: 405, s: 1.02, rx: 7, ry: -11, op: 0 }));
-    const a = T.s04;
-    at(a, () => st('camTo', a, a + 1.4, { op: 1, s: 1.16, rx: 3, ry: -5 }));
-    at(a + 1.4, () => st('camTo', a + 1.4, a + 3, { s: 1.34, rx: 0, ry: 0, x: 720, y: 405 }));
-    at(a + 1.0, async () => { const r = await rect('.item-search input'); await st('curTo', a + 1.0, a + 1.0, r.x + 120, r.y + 200); });
-    pointClick(a + 1.05, .55, () => rect('.item-search input'), () => clickSel('.item-search input'));
-    const typed = typeText(a + 1.7, 'Laptop', .07);
-    pointClick(typed + .05, .4, () => frame.evaluate(() => { const el = [...document.querySelectorAll('[cmdk-item]')].find(e => e.textContent.trim().startsWith('Laptop')); const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }), () => frame.evaluate(() => { [...document.querySelectorAll('[cmdk-item]')].find(e => e.textContent.trim().startsWith('Laptop')).click(); }));
-    const c1 = typed + .75;
-    pointClick(c1, .5, () => textRect('button.chip', 'Battery'), () => clickText('button.chip', 'Battery'));
-    pointClick(c1 + .95, .45, () => textRect('button.chip', 'too hot'), () => clickText('button.chip', 'too hot'));
-    pointClick(c1 + 1.75, .28, () => textRect('button.chip', 'too hot'), () => clickText('button.chip', 'too hot'));
-    const d0 = c1 + 2.25;
-    at(d0, async () => { const r = await rect('.check-form textarea'); await st('camTo', d0, d0 + 1.1, fill(r.x + r.w / 2, r.y + r.h / 2 - 20, 1.75)); });
-    pointClick(d0 + .1, .5, () => rect('.check-form textarea'), () => clickSel('.check-form textarea'));
-    const d1 = typeText(d0 + .75, 'Der Akku lädt nicht mehr', Math.min(.075, (tl('s04b') + 1.0 - (d0 + .75)) / 24));
-    at(tl('s04b') + .1, async () => { const r = await rect('.privacy'); await st('ring', { t0: tl('s04b') + .1, t1: T.s04_end + .1, x: r.x - 8, y: r.y - 6, w: r.w + 16, h: r.h + 12 }); });
-    // S05 verdict: the music lands here.
-    const b = T.s05;
-    at(b - .3, async () => { await st('curHide'); await frame.evaluate(() => document.activeElement?.blur?.()); const r = await rect('.result-card'); await st('camTo', b - .3, b + .7, fill(r.x + r.w / 2, r.y + 210, 1.62)); });
-    sceneCard({ t0: tl('s05') + lines.s05.d * .22, t1: T.s05_end - .1, cls: 'stamp', rise: 12, style: 'align-items:flex-start', html: `<div class="stampbox" style="margin:27vh 0 0 0"><div class="n">86.4%</div><div class="t">fixed or repairable<br>54.7% fixed + 31.7% more work or parts</div></div>` });
-    hideWin(T.s05_end - .3);
-    // S07 impact
-    const c = T.s07;
-    at(c - .05, async () => { const r = await rect('.impact-block'); await st('camSet', { op: 0, s: 1.5, rx: 2, ry: -3, x: r.x + r.w / 2, y: r.y + r.h / 2 }); await st('camTo', c, c + .9, { op: 1, s: 1.95, rx: 0, ry: 0 }); await st('ring', { t0: c + .5, t1: tl('s07c') - .1, x: r.x - 10, y: r.y - 8, w: r.w + 20, h: r.h + 16 }); });
-    const s7c = tl('s07c');
-    at(s7c - .5, async () => {
-      const o = await frame.evaluate(() => { const h = [...document.querySelectorAll('.result-details button')].find(e => e.textContent.includes('How these figures')); h.click(); return { top: h.getBoundingClientRect().top + scrollY, x: h.getBoundingClientRect().x + h.getBoundingClientRect().width / 2 }; });
-      await page.clock.runFor(350);
-      const tgt = await frame.evaluate(t => Math.min(t, document.documentElement.scrollHeight - innerHeight), o.top - 160);
-      scroll = { t0: s7c - .4, t1: s7c + .9, from: await frame.evaluate(() => scrollY), to: tgt };
-      await st('camTo', s7c - .4, s7c + .9, fill(o.x, 160 + 170, 1.55));
-    });
-    at(s7c + .95, async () => {
-      const r = await frame.evaluate(() => { const p = [...document.querySelectorAll('.result-details p')].find(e => e.textContent.startsWith('Expected CO')); const b = p.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height }; });
-      await st('ring', { t0: s7c + 1, t1: T.s07_end - .3, x: r.x - 8, y: r.y - 5, w: r.w + 16, h: r.h + 10 });
-      await st('camTo', s7c + 1, T.s07_end, fill(r.x + r.w / 2, r.y + 90, 1.68));
-    });
-    hideWin(T.s07_end - .3);
-    // N09: one route at a time, then the suggested first step.
-    const n9 = tl('n09a');
-    at(T.n09_card + .15, async () => {
-      await st('curHide');
-      await frame.evaluate(() => { const r = document.querySelector('.routes'); window.scrollTo({ top: r.getBoundingClientRect().top + scrollY - 40, behavior: 'instant' }); });
-      await page.clock.runFor(300);
-      await floatIn('n09', subject(await rect('.route-grid .route:nth-child(1)'), 1.8));
-    });
-    for (const [fraction, index] of [[.18, 1], [.5, 2], [.76, 3]]) {
-      const t = n9 + lines.n09a.d * fraction;
-      at(t, async () => st('camTo', t, t + .7, subject(await rect(`.route-grid .route:nth-child(${index})`), 1.8)));
+  // A3: always choose the cafe route, even if a guide makes DIY the suggestion.
+  const cafe = '.route-grid .route:nth-child(2)';
+  at(T.a3, async () => {
+    await st('curHide');
+    if (PORTRAIT) { await page.keyboard.press('Escape'); await page.clock.runFor(500); }
+    await waitSel(cafe); const r = await reveal(cafe); await floatIn('a3', subject(r, PORTRAIT ? 2.05 : 1.8));
+  });
+  at(tl('a3a'), async () => highlight(await rect(cafe), tl('a3a'), tl('a3b')));
+  focus(tl('a3b') - .35, cafe + ' button.secondary', tl('a3b') + .65);
+  pointClick(tl('a3b') - .2, .3, () => textRect(cafe + ' button', 'Make this my next step'), async () => {
+    await clickText(cafe + ' button', 'Make this my next step');
+    await pump(s => document.querySelector(s)?.textContent.includes('Next step added'), cafe);
+    const r = await rect(cafe + ' [role="status"]'); await highlight(r, tl('a3b') + .2, te('a3b'));
+  });
+  at(te('a3b') + .05, async () => {
+    if (await frame.evaluate(() => !!document.querySelector('.next-step'))) {
+      const r = await reveal('.next-step'); await st('camTo', te('a3b') + .05, te('a3b') + .4, subject(r, PORTRAIT ? 2 : 1.85));
     }
-    at(tl('n09b'), async () => {
-      const r = await rect('.route.is-best');
-      await st('camTo', tl('n09b'), tl('n09b') + .7, subject(r, 2));
-      await highlight(r, tl('n09b'), T.n09_end);
-    });
-    // N10 repair events in Bristol: search, map, one-tap calendar reminder.
-    const n10 = tl('n10');
-    at(T.n10_card + .15, async () => {
-      await frame.evaluate(() => { location.hash = '/events'; });
-      await waitSel('.events-page .place-form input');
-      await frame.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-      const r = await rect('.events-page .place-form input');
-      await floatIn('n10', subject(r, 1.9));
-      await st('curTo', n10, n10, r.x + 260, r.y + r.h + 90);
-    });
-    pointClick(n10 + .95, .4, () => rect('.events-page .place-form input'), () => clickSel('.events-page .place-form input'));
-    const typedE = typeText(n10 + 1.4, 'Bristol, UK', .045);
-    pointClick(typedE + .05, .3, () => rect('.events-page .place-form button[type=submit]'), () => clickSel('.events-page .place-form button[type=submit]'));
-    at(typedE + .4, async () => {
-      await pump(() => !!document.querySelector('.place-choices button') || (!!document.querySelector('.event-list li') && !document.querySelector('.place-form button[disabled]')), 'events');
-      if (await frame.evaluate(() => !!document.querySelector('.place-choices button'))) { await frame.evaluate(() => document.querySelector('.place-choices button').click()); await waitSel('.event-list li'); }
-      await frame.evaluate(() => document.activeElement?.blur?.()); await st('curHide');
-      await waitTiles(); await page.clock.runFor(300);
-      const o = await frame.evaluate(() => { const m = document.querySelector('.events-page .map').getBoundingClientRect(); const to = Math.min(m.top + scrollY - 70, document.documentElement.scrollHeight - innerHeight); return { from: scrollY, to, x: m.x + m.width / 2, vy: m.top + scrollY - to, h: m.height }; });
-      scroll = { t0: typedE + .4, t1: typedE + 1.4, from: o.from, to: o.to };
-      await st('camTo', typedE + .4, typedE + 1.4, subject({ x: o.x, y: o.vy, w: 0, h: o.h }, 1.6));
-    });
-    const cal = tl('n10') + lines.n10.d * .62;
-    at(cal - .7, async () => { const r = await rect('.event-list li'); await st('camTo', cal - .7, cal + .3, subject(r, 1.9)); await st('curTo', cal - .7, cal - .7, r.x + r.w - 300, r.y + 140); });
-    pointClick(cal - .45, .4, () => rect('.event-list li button.secondary'), () => clickSel('.event-list li button.secondary'));
-    at(cal - .05, async () => { const r = await rect('.event-list li button.secondary'); await highlight(r, cal - .05, T.n10_end - .2); });
-    // N11 finder: open-now filter, then a ready-to-send enquiry.
-    const n11 = tl('n11');
-    at(T.n11_card + .15, async () => {
-      await st('curHide');
-      await frame.evaluate(() => { location.hash = '/'; });
-      await waitSel('.routes button.route-link');
-      await frame.evaluate(() => document.querySelector('.routes button.route-link').click());
-      await waitSel('.finder .repair-list'); await page.clock.runFor(900);
-      await frame.evaluate(() => { const f = document.querySelector('.finder .filter-bar'); window.scrollTo({ top: f.getBoundingClientRect().top + scrollY - 150, behavior: 'instant' }); });
-      const r = await textRect('.finder button.chip', 'Open now');
-      await floatIn('n11', subject(r, 2));
-      await st('curTo', n11, n11, r.x + r.w / 2, r.y + 100);
-    });
-    pointClick(n11 + .95, .35, () => textRect('.finder button.chip', 'Open now'), () => clickText('.finder button.chip', 'Open now'));
-    at(n11 + 1.3, async () => highlight(await textRect('.finder button.chip', 'Open now'), n11 + 1.3, n11 + 2));
-    const ask = n11 + 2.1;
-    at(ask - .1, async () => {
-      const o = await frame.evaluate(() => { const all = [...document.querySelectorAll('.finder .repair-list > li')].filter(l => l.querySelector('.ask')); const li = all.find(l => [...l.querySelectorAll('a[href^="tel:"]')].some(a => /^tel:(\+|00)/.test(a.getAttribute('href')))) || all[0]; li.setAttribute('data-film', '1'); const b = li.getBoundingClientRect(); const to = Math.min(b.top + scrollY - 110, document.documentElement.scrollHeight - innerHeight); return { from: scrollY, to, x: b.x + b.width / 2, vy: b.top + scrollY - to }; });
-      scroll = { t0: ask - .1, t1: ask + .6, from: o.from, to: o.to };
-      await st('camTo', ask - .1, ask + .6, fill(o.x, o.vy + 160, 1.55));
-    });
-    pointClick(ask + .65, .4, () => rect('li[data-film] .ask'), async () => {
-      await clickSel('li[data-film] .ask'); await page.clock.runFor(50);
-      // The film serves the build locally; show the ticket link as the live site writes it.
-      await frame.evaluate(() => { const ta = document.querySelector('li[data-film] .enquiry textarea'); const v = ta.value.replace(/http:\/\/127\.0\.0\.1:\d+\/app\/index\.html/, 'https://yy5652-hash.github.io/fixodds/'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(ta, v); ta.dispatchEvent(new Event('input', { bubbles: true })); });
-    });
-    at(ask + 1.15, async () => {
-      await page.clock.runFor(150); await st('curHide');
-      const o = await frame.evaluate(() => { const e = document.querySelector('li[data-film] .enquiry').getBoundingClientRect(); const to = Math.min(e.top + scrollY - 140, document.documentElement.scrollHeight - innerHeight); return { from: scrollY, to, d: scrollY - to }; });
-      scroll = { t0: ask + 1.15, t1: ask + 1.85, from: o.from, to: o.to };
-      const r = await rect('li[data-film] .enquiry');
-      await st('camTo', ask + 1.15, ask + 1.85, subject({ ...r, y: r.y + o.d }, 1.7));
-      const b = await frame.evaluate(d => { const e = document.querySelector('li[data-film] .enquiry'); const a = e.querySelector('a[href^="https://wa.me"]') || e.querySelector('a[href^="sms:"]') || e.querySelector('a.button'); const r = a.getBoundingClientRect(); return { x: r.x, y: r.y + d, w: r.width, h: r.height }; }, o.d);
-      await st('ring', { t0: ask + 1.9, t1: T.n11_end - .2, x: b.x - 6, y: b.y - 5, w: b.w + 12, h: b.h + 10 });
-      
-    });
-    // N12 item record: vacuum score, then the brand table.
-    const n12 = tl('n12');
-    at(T.n12_card + .15, async () => {
-      await st('curHide');
-      await frame.evaluate(() => { location.hash = '/item/vacuum'; });
-      await waitSel('.item-hero .item-score'); await page.clock.runFor(300);
-      await frame.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-      await floatIn('n12', subject(await rect('.item-hero .item-score'), 2));
-    });
-    const br = tl('n12') + lines.n12.d * .5;
-    at(br, async () => {
-      const o = await frame.evaluate(() => {
-        const h = [...document.querySelectorAll('h2')].find(x => x.textContent.includes('By brand'));
-        const card = h.closest('.card'), c = card.getBoundingClientRect();
-        const rows = [...card.querySelectorAll('[role="row"]')].slice(0, 8);
-        const bottom = rows.at(-1).getBoundingClientRect().bottom;
-        const to = Math.min(c.top + scrollY - 40, document.documentElement.scrollHeight - innerHeight);
-        return { from: scrollY, to, r: { x: c.x, y: c.top + scrollY - to, w: c.width, h: bottom - c.top } };
+    await st('curHide');
+  });
+
+  if (!PORTRAIT) {
+    // A4: use the existing finder, preserving the saved cafe job. No message leaves.
+    const send = T.a4;
+    at(send, async () => {
+      await clickSel('.routes button.route-link'); await waitSel('.finder .repair-list .ask'); await page.clock.runFor(500);
+      await frame.evaluate(() => {
+        const all = [...document.querySelectorAll('.finder .repair-list > li')].filter(l => l.querySelector('.ask'));
+        const international = all.filter(l => [...l.querySelectorAll('a[href^="tel:"]')].some(a => /^tel:(\+|00)/.test(a.getAttribute('href'))));
+        const li = international.find(l => /Repair cafe/i.test(l.textContent)) || international[0];
+        if (!li) throw Error('No mapped WhatsApp contact near Bristol'); li.setAttribute('data-film', '1');
       });
-      scroll = { t0: br, t1: br + 1.1, from: o.from, to: o.to };
-      await st('camTo', br, br + 1.1, subject(o.r, 1.7));
+      const r = await reveal('li[data-film] .ask'); await st('camTo', send, send + .4, subject(r, 1.85));
     });
-    // N13 quick cuts: tracker, then the same result in Chinese and German.
-    const n13 = tl('n13'), cut = (T.n13_end - n13) / 3;
-    const moveBtn = () => textRect('.job button', 'Move to:');
-    at(T.n13_card + .15, async () => {
-      await frame.evaluate(() => { location.hash = '/log'; });
-      await waitSel('.log-totals');
-      await frame.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.startsWith('Track my')).click());
-      await waitSel('.job .stepper');
-      await frame.evaluate(() => [...document.querySelectorAll('.job button')].find(x => x.textContent.startsWith('Move to:')).click());
+    pointClick(send + .45, .3, () => rect('li[data-film] .ask'), async () => {
+      await clickSel('li[data-film] .ask'); await waitSel('li[data-film] .enquiry textarea');
+      // Local render URLs become the public ticket URL, through React's input event.
+      await frame.evaluate(() => {
+        const ta = document.querySelector('li[data-film] .enquiry textarea');
+        const v = ta.value.replace(/http:\/\/127\.0\.0\.1:\d+\/app\/index\.html/, 'https://yy5652-hash.github.io/fixodds/');
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(ta, v);
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+      });
       await page.clock.runFor(100);
-      await frame.evaluate(() => { const j = document.querySelector('.job'); window.scrollTo({ top: j.getBoundingClientRect().top + scrollY - 150, behavior: 'instant' }); });
-      const r = await rect('.job .stepper');
-      await floatIn('n13', subject(r, 1.9));
-      const b = await moveBtn(); await st('curTo', n13, n13, b.x + b.w / 2 + 40, b.y + 90);
     });
-    pointClick(n13 + .25, .35, moveBtn, () => frame.evaluate(() => [...document.querySelectorAll('.job button')].find(x => x.textContent.startsWith('Move to:')).click()));
+    focus(send + .9, 'li[data-film] .enquiry textarea', send + 3.3, 1.7);
+    const whatsapp = 'li[data-film] .enquiry a[href^="https://wa.me"]';
+    focus(send + 3.4, whatsapp, send + 4.6);
+    pointClick(send + 3.8, .35, () => rect(whatsapp), async () => {
+      // As in e2e: cancel navigation only, allowing the delegated React handler.
+      await frame.evaluate(s => document.querySelector(s).addEventListener('click', e => e.preventDefault()), whatsapp);
+      await clickSel(whatsapp); await waitSel('li[data-film] .enquiry .notice button.primary');
+    });
+    focus(send + 4.45, 'li[data-film] .enquiry .notice', send + 5.65);
+    pointClick(send + 5.1, .35, () => textRect('li[data-film] .enquiry button', 'Yes, I sent it'), () => clickText('li[data-film] .enquiry button', 'Yes, I sent it'));
+    at(send + 5.55, () => st('curHide'));
+  }
+
+  // A5: footage hides only the navigation. Every repair-state change is a UI action.
+  at(T.a5, async () => {
+    await st('curHide'); await frame.evaluate(() => { location.hash = '/log'; }); await waitSel('.job .stepper');
+    if (PORTRAIT) {
+      // The short cut omits the enquiry scene; advance via the same confirmation UI.
+      await clickText('.job button', 'Move to:'); await waitSel('.job .notice button.primary');
+      await clickText('.job .notice button', 'Yes, I sent it'); await page.clock.runFor(100);
+    }
+    const r = await reveal('.job .stepper'); await st('camSet', { ...subject(r, PORTRAIT ? 2 : 1.85), op: 1, rx: 0, ry: 0 });
+  });
+  const job = tl('a5b'), stepPace = 1;
+  const jt = n => job + n * stepPace;
+  const moveBtn = () => textRect('.job button', 'Move to:');
+  focus(job, '.job > .actions button', jt(.45));
+  pointClick(jt(.2), .2, moveBtn, () => clickText('.job button', 'Move to:'));
+  focus(jt(.45), '.job .stepper', jt(.85));
+  focus(jt(.8), '.job > .actions button', jt(1.25));
+  pointClick(jt(1), .2, moveBtn, () => clickText('.job button', 'Move to:'));
+  focus(jt(1.25), '.job .stepper', jt(1.7));
+  focus(jt(1.7), '.job .actions button.primary', jt(2.15));
+  pointClick(jt(1.8), .2, () => textRect('.job button', 'Record the outcome'), async () => { await clickText('.job button', 'Record the outcome'); await waitSel('.job .outcome-form'); });
+  focus(jt(2.1), '.job .outcome-form select', jt(2.75));
+  pointClick(jt(2.25), .18, () => rect('.job .outcome-form select'), () => frame.selectOption('.job .outcome-form select', 'Fixed'));
+  focus(jt(2.8), '.job .outcome-form button[type="submit"]', jt(3.4));
+  pointClick(jt(2.95), .2, () => rect('.job .outcome-form button[type="submit"]'), async () => {
+    await clickSel('.job .outcome-form button[type="submit"]'); await waitSel('.log-list li');
+    const r = await reveal('.log-totals'); await st('camTo', jt(3.15), jt(3.5), subject(r, PORTRAIT ? 2 : 1.7));
+    await highlight(r, jt(3.5), T.a5_end - .15); await st('curHide');
+  });
+
+  if (!PORTRAIT) {
+    // A9: identical verdict/stack anchor for a one-second Chinese/German match cut.
     const lang = (t, code) => at(t, async () => {
-      await st('curHide');
-      await frame.selectOption('select[aria-label="Language"]', code);
+      await st('curHide'); await frame.selectOption('select[aria-label="Language"]', code);
       await frame.evaluate(() => { location.hash = '/'; }); await waitSel('.result-card'); await page.clock.runFor(200);
       await frame.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-      const r = await frame.evaluate(() => {
-        const v = document.querySelector('.result-card .verdict').getBoundingClientRect();
-        const b = document.querySelector('.result-card .stack').getBoundingClientRect();
-        return { x: v.x, y: v.y, w: v.width, h: b.bottom - v.top };
-      });
-      // Anchor the verdict's top at 28% in both languages for a true match cut.
-      await st('camSet', { op: 1, rx: 0, ry: 0, s: 1.8,
-        x: r.x + r.w / 2, y: r.y + H * (.5 - .28) / 1.8 });
+      const r = await rect('.result-card .verdict');
+      await st('camSet', { op: 1, rx: 0, ry: 0, s: 1.8, x: r.x + r.w / 2, y: r.y + H * (.5 - .28) / 1.8 });
     });
-    lang(n13 + cut, 'zh'); lang(n13 + 2 * cut, 'de');
-  } else {
-    // Short version: the real phone layout, scaled up.
-    at(0, async () => { await st('camSet', { x: AW / 2, y: AH / 2, s: 2, rx: 0, ry: 0, op: 0 }); });
-    // Set up while the title cards play.
-    at(T.s03 + .2, async () => {
-      await frame.evaluate(() => document.querySelector('.item-search input').focus());
-      await page.keyboard.insertText('Laptop'); await page.clock.runFor(200);
-      await frame.evaluate(() => [...document.querySelectorAll('[cmdk-item]')].find(e => e.textContent.trim().startsWith('Laptop')).click());
-      await page.clock.runFor(200); await clickText('button.chip', 'Battery'); await page.clock.runFor(400);
-      await frame.evaluate(() => document.activeElement?.blur?.());
-    });
-    const b = T.s05;
-    at(b - .3, () => st('camTo', b - .3, b + .4, { op: 1, s: 2.1 }));
-    at(b - .1, () => clickSel('.mobile-result'));
-    at(b + .9, async () => { const r = await rect('.drawer-content .verdict'); await st('camTo', b + .4, b + 1.4, { s: 2.15, y: r.y + 230 }); });
-    sceneCard({ t0: tl('s05') + lines.s05.d * .22, t1: T.s05_end - .1, cls: 'stamp', rise: 12, style: 'align-items:center', html: `<div class="stampbox" style="margin-top:75.2vh;padding:1.6vmin 3.4vmin"><div class="n">86.4%</div><div class="t">fixed or repairable</div></div>` });
-    hideWin(T.s05_end - .3);
-    // Routes, then Bristol repair events, in the phone layout.
-    at(T.s08 + .4, async () => {
-      await page.keyboard.press('Escape'); await page.clock.runFor(900);
-      await frame.evaluate(() => { document.activeElement?.blur?.(); document.head.insertAdjacentHTML('beforeend', '<style>.mobile-result:focus,.mobile-result:focus-visible{outline:none;box-shadow:none}</style>'); const r = document.querySelector('.routes'); window.scrollTo({ top: r.getBoundingClientRect().top + scrollY - 12, behavior: 'instant' }); });
-      await page.clock.runFor(300);
-    });
-    const e = tl('n09a');
-    at(T.n09_card + .15, () => floatIn('n09', { s: 2.1, x: AW / 2, y: AH / 2 }));
-    at(e + .95, async () => { const r = await rect('.route.is-best'); await highlight(r, e + .95, tl('n09a') + lines.n09a.d * .4); });
-    at(tl('n09a') + lines.n09a.d * .42, async () => { const o = await frame.evaluate(() => { const r = document.querySelector('.routes').getBoundingClientRect(); return { from: scrollY, to: Math.min(r.bottom + scrollY - innerHeight + 70, document.documentElement.scrollHeight - innerHeight) }; }); scroll = { t0: tl('n09a') + lines.n09a.d * .42, t1: te('n09a') - .3, from: o.from, to: o.to }; });
-    const g = tl('n10');
-    at(T.n10_card + .15, async () => {
-      await frame.evaluate(() => { location.hash = '/events'; });
-      await waitSel('.events-page .place-form input');
-      await frame.evaluate(() => document.querySelector('.events-page .place-form input').focus());
-      await page.keyboard.insertText('Bristol, UK');
-      await frame.evaluate(() => document.querySelector('.events-page .place-form button[type=submit]').click());
-      await pump(() => !!document.querySelector('.place-choices button') || (!!document.querySelector('.event-list li') && !document.querySelector('.place-form button[disabled]')), 'events');
-      if (await frame.evaluate(() => !!document.querySelector('.place-choices button'))) { await frame.evaluate(() => document.querySelector('.place-choices button').click()); await waitSel('.event-list li'); }
-      await frame.evaluate(() => { document.activeElement?.blur?.(); const m = document.querySelector('.events-page .map'); window.scrollTo({ top: m.getBoundingClientRect().top + scrollY - 10, behavior: 'instant' }); });
-      await waitTiles(); await page.clock.runFor(400);
-      await floatIn('n10', { s: 2.1, x: AW / 2, y: AH / 2 });
-    });
-    const calP = tl('n10') + lines.n10.d * .55;
-    pointClick(calP - .45, .4, () => rect('.event-list li button.secondary'), () => clickSel('.event-list li button.secondary'));
-    at(calP - .05, async () => { await st('curHide'); const r = await rect('.event-list li button.secondary'); await highlight(r, calP - .05, T.n10_end - .2); });
+    lang(T.a9 + .15, 'zh'); lang(T.a9 + 1.15, 'de');
   }
-  hideWin(T.s12 - .1, .5);
+  hideWin(T.a6, .2); hideWin(T.a10, .2);
   queue.sort((a, b) => a.t - b.t);
 
   // ---- Frame loop ----

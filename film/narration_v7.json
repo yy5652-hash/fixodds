@@ -1,0 +1,82 @@
+[
+ {
+  "id": "a1",
+  "say": "It stopped working. Most people replace it, because nobody tells them the odds.",
+  "cap": "It stopped working. Most people replace it, because nobody tells them the odds."
+ },
+ {
+  "id": "a2a",
+  "say": "Fix Odds checks before you decide.",
+  "cap": "FixOdds checks before you decide."
+ },
+ {
+  "id": "a2b",
+  "say": "A five-year-old laptop whose battery won't charge: repair first.",
+  "cap": "A five-year-old laptop whose battery won't charge: repair first."
+ },
+ {
+  "id": "a2c",
+  "say": "About half are fixed outright, and four in ten more need a part or more work.",
+  "cap": "About half are fixed outright, and four in ten more need a part or more work."
+ },
+ {
+  "id": "a3a",
+  "say": "Then it shows three ways to get it fixed, and picks a first step: a free repair cafe near you, next week.",
+  "cap": "Then it shows three ways to get it fixed, and picks a first step: a free repair cafe near you, next week."
+ },
+ {
+  "id": "a3b",
+  "say": "Save it as your next step.",
+  "cap": "Save it as your next step."
+ },
+ {
+  "id": "a4",
+  "say": "One tap sends the volunteers the model, the fault and a repair ticket. You confirm it was sent.",
+  "cap": "One tap sends the volunteers the model, the fault and a repair ticket. You confirm it was sent."
+ },
+ {
+  "id": "a5a",
+  "say": "At the cafe, volunteers find the fault.",
+  "cap": "At the cafe, volunteers find the fault."
+ },
+ {
+  "id": "a5b",
+  "say": "In the tracker, the repair moves to done.",
+  "cap": "In the tracker, the repair moves to done."
+ },
+ {
+  "id": "a6a",
+  "say": "Fixed, it keeps nearly two kilograms of electronics in use, worth about a hundred and thirty kilograms of C O two equivalent.",
+  "cap": "Fixed, it keeps nearly 2 kg of electronics in use, worth about 130 kg of CO₂ equivalent."
+ },
+ {
+  "id": "a6b",
+  "say": "Before the repair, Fix Odds weighted that by the odds: about sixty-five.",
+  "cap": "Before the repair, FixOdds weighted that by the odds: about 65."
+ },
+ {
+  "id": "a7a",
+  "say": "Are the odds right? We tested them on eleven thousand later repairs the model never saw.",
+  "cap": "Are the odds right? We tested them on 11,000 later repairs the model never saw."
+ },
+ {
+  "id": "a7b",
+  "say": "In the repair-first band, seventy percent were fixed, and eighteen more needed further work.",
+  "cap": "In the repair-first band, 70% were fixed, and 18 more needed further work."
+ },
+ {
+  "id": "a8",
+  "say": "Across the source dataset, past fixes add up to about five thousand four hundred tonnes of C O two equivalent. Fix Odds sends more items down that path.",
+  "cap": "Across the source dataset, past fixes add up to about 5,400 tonnes of CO₂ equivalent. FixOdds sends more items down that path."
+ },
+ {
+  "id": "a9",
+  "say": "In five interface languages.",
+  "cap": "In five interface languages."
+ },
+ {
+  "id": "a10",
+  "say": "Check a broken item. Choose your next repair step. Fix Odds.",
+  "cap": "Check a broken item. Choose your next repair step. FixOdds."
+ }
+]

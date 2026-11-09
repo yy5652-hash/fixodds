@@ -21,10 +21,12 @@ for (const network of networks) {
     const lat = Number(e.lat), lng = Number(e.lng);
     if (!e.approved || seen.has(e.id) || typeof e.start !== 'string') continue;
     if (!e.online && !(Number.isFinite(lat) && Number.isFinite(lng) && (lat || lng))) continue;
-    seen.set(e.id, [e.id, e.start, e.end || '', e.timezone || '', String(e.title || '').slice(0, 120), String(e.location || '').slice(0, 200), e.online ? null : +lat.toFixed(5), e.online ? null : +lng.toFixed(5), String(e.group?.name || '').slice(0, 120), e.online ? 1 : 0, String(e.group?.location?.country || '')]);
+    // Preserve availability phrases, never the description's organiser contacts or other body text.
+    const statusText = (String(e.description || '').replace(/<[^>]*>/g, ' ').match(/\b(?:(?:not|never|no)\s+)?(?:full(?:y booked)?|sold[ -]out|cancell?ed|(?:booking(?:s)?|registration|reservation)(?:\s+is)?\s+(?:not\s+)?(?:required|essential|mandatory)|must\s+book|book(?:ing)?\s+in\s+advance)\b/gi) || []).join('. ');
+    seen.set(e.id, [e.id, e.start, e.end || '', e.timezone || '', String(e.title || '').slice(0, 120), String(e.location || '').slice(0, 200), e.online ? null : +lat.toFixed(5), e.online ? null : +lng.toFixed(5), String(e.group?.name || '').slice(0, 120), e.online ? 1 : 0, String(e.group?.location?.country || ''), statusText]);
   }
 }
 const events = [...seen.values()].sort((a, b) => a[1].localeCompare(b[1]));
 if (events.length < 20) throw Error(`Only ${events.length} events returned; keeping the previous snapshot.`);
-writeFileSync('public/events.json', JSON.stringify({ built: new Date().toISOString(), source: 'Restarters.net (The Restart Project) public events API', networks: networks.length, fields: ['id', 'start', 'end', 'timezone', 'title', 'location', 'lat', 'lng', 'group', 'online', 'country'], events }));
+writeFileSync('public/events.json', JSON.stringify({ built: new Date().toISOString(), source: 'Restarters.net (The Restart Project) public events API', networks: networks.length, fields: ['id', 'start', 'end', 'timezone', 'title', 'location', 'lat', 'lng', 'group', 'online', 'country', 'description'], events }));
 console.log(`${events.length} upcoming events from ${networks.length} networks`);
