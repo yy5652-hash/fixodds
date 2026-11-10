@@ -48,6 +48,9 @@ test('30-day follow-up and totals use reported evidence only; pilot CSV remains 
   expect(followupDue({ ...entry, checkedOn: '2026-02-01' })).toBe(false);
   expect(followupDue({ ...entry, status: 'Repairable' })).toBe(false);
   expect(logTotals([entry, { ...entry, id: 'b', purchasePostponed: 'no', stillWorking: 'yes' }, { ...entry, status: 'Repairable' }])).toMatchObject({ fixed: 2, postponed: 1, inUse: 1 });
+  // A fix with no postponed purchase keeps its e-waste in use but adds no avoided emissions.
+  const one = logTotals([entry]), both = logTotals([entry, { ...entry, id: 'b', purchasePostponed: 'no' }]), unknown = logTotals([entry, { ...entry, id: 'c', purchasePostponed: undefined }]);
+  expect(one.carbon).toBeGreaterThan(0); expect(both.carbon).toBeCloseTo(one.carbon); expect(both.waste).toBeCloseTo(2 * one.waste); expect(unknown.carbon).toBeCloseTo(2 * one.carbon);
   const csv = exportPilot([entry], [planned]);
   expect(csv).toContain('purchase_postponed,still_working,checked_on'); expect(csv).toContain('"\'=formula"'); expect(csv).toContain('"replace","Fixed","yes"'); expect(csv).toContain('"Planned"');
 });

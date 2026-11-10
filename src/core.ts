@@ -243,7 +243,8 @@ export function logTotals(entries: LogEntry[]) {
     if (entry.purchasePostponed === 'yes') total.postponed++;
     if (entry.stillWorking === 'yes') total.inUse++;
     const factor = factorFor(entry.input);
-    if (factor) { const saved = impact(1, factor); total.carbon += saved.carbon; total.waste += saved.waste; }
+    // A fixed item always keeps its e-waste in use; avoided-purchase emissions are dropped when the owner reports no purchase was postponed.
+    if (factor) { const saved = impact(1, factor); if (entry.purchasePostponed !== 'no') total.carbon += saved.carbon; total.waste += saved.waste; }
     else total.unquantified++;
     return total;
   }, { carbon: 0, waste: 0, fixed: 0, postponed: 0, inUse: 0, unquantified: 0 });
